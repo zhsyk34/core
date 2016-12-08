@@ -63,6 +63,7 @@ public class ByteKit {
 		return bytesToHex(bytes, null);
 	}
 
+	//TODO
 	public static byte[] hexToBytes(String str) {
 		if (str.length() < 1)
 			return null;

@@ -1,5 +1,6 @@
 package com.dnake.smart.core.session;
 
+import com.dnake.smart.core.dict.Device;
 import com.dnake.smart.core.kit.ValidateKit;
 import io.netty.channel.Channel;
 import lombok.Getter;
@@ -11,8 +12,6 @@ import java.time.ZoneId;
 
 /**
  * TCP连接信息
- *
- * @author zhsy
  */
 @Getter
 @Setter
@@ -21,12 +20,20 @@ public class TcpSessionInfo {
 	private static final long MIN_MILL = LocalDateTime.of(2016, 12, 1, 0, 0, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 
 	private Channel channel;
-	private Device device;
 	private String sn;//设备号(目前只记录网关)
 	private long create;//本次连接的创建时间
 
-	//private volatile long update;//更新时间(暂时无用)
-	private volatile boolean pass;//是否通过验证(目前只用于客户端登录验证)
+	/**
+	 * 以下字段作废
+	 */
+	@Deprecated
+	private Device device;
+	@Deprecated
+	private String verify;//本次登录的验证码
+	@Deprecated
+	private volatile long update;//更新时间(暂时无用)
+	@Deprecated
+	private volatile boolean login;//是否通过验证(通过队列管理)
 
 	private TcpSessionInfo() {
 	}
@@ -34,7 +41,8 @@ public class TcpSessionInfo {
 	/**
 	 * device,sn在接收登录请求后获取,pass在登录后更新
 	 */
-	private static TcpSessionInfo build(Channel channel, Device device, String sn, long create, boolean pass) {
+	@Deprecated
+	private static TcpSessionInfo build(Channel channel, Device device, String sn, long create, boolean login) {
 		if (channel == null || create < MIN_MILL) {
 			throw new RuntimeException("params is invalid.");
 		}
@@ -44,7 +52,26 @@ public class TcpSessionInfo {
 		sessionInfo.setDevice(device);
 		sessionInfo.setSn(sn);
 		sessionInfo.setCreate(create);
-		sessionInfo.setPass(pass);
+		sessionInfo.setLogin(login);
+
+		return sessionInfo;
+	}
+
+	/**
+	 * @param channel 连接
+	 * @param sn      网关sn
+	 * @param create  创建连接的时间
+	 * @return 会话信息
+	 */
+	private static TcpSessionInfo build(Channel channel, String sn, long create) {
+		if (channel == null || create < MIN_MILL) {
+			throw new RuntimeException("params is invalid.");
+		}
+		TcpSessionInfo sessionInfo = new TcpSessionInfo();
+
+		sessionInfo.setChannel(channel);
+		sessionInfo.setSn(sn);
+		sessionInfo.setCreate(create);
 
 		return sessionInfo;
 	}
@@ -53,13 +80,14 @@ public class TcpSessionInfo {
 	 * 连接时初始化
 	 */
 	public static TcpSessionInfo init(Channel channel) {
-		return build(channel, null, null, System.currentTimeMillis(), false);
+		return build(channel, null, System.currentTimeMillis());
 	}
 
 	/**
-	 * 通过登录后
+	 * 由队列管理
 	 */
-	public TcpSessionInfo pass(Device device, String sn) {
+	@Deprecated
+	public TcpSessionInfo pass(Device device, String sn, boolean login) {
 		if (device == null) {
 			throw new RuntimeException("error type with device");
 		}
@@ -71,9 +99,27 @@ public class TcpSessionInfo {
 			}
 			this.sn = sn;
 		}
-
-		this.pass = true;
+		this.login = login;
 		return this;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o || o == null) {
+			return this == o;
+		}
+		if (this.getClass() != o.getClass()) {
+			return false;
+		}
+
+		TcpSessionInfo that = (TcpSessionInfo) o;
+
+		return sn.equals(that.sn);
+	}
+
+	@Override
+	public int hashCode() {
+		return sn.hashCode();
 	}
 
 }

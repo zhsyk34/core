@@ -23,7 +23,7 @@
     -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss} %level %c{0}%M %m%n</pattern>
+            <pattern>%d{HH:mm:ss} %level %logger{5} %m%n</pattern>
         </encoder>
     </appender>
 
@@ -40,12 +40,12 @@
         <prudent>false</prudent>
     </appender>
 
-    <logger name="com.dnk.smart" level="debug" additivity="false">
+    <!--<logger name="com.dnk.smart" level="debug" additivity="false">
         <appender-ref ref="FILE"/>
         <appender-ref ref="STDOUT"/>
-    </logger>
+    </logger>-->
 
-    <root level="info">
+    <root level="warn">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

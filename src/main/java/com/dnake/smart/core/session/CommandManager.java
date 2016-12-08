@@ -5,7 +5,7 @@ import com.dnake.smart.core.config.Config;
 import java.util.Map;
 import java.util.concurrent.*;
 
-import static com.dnake.smart.core.kit.ValidateKit.validateTime;
+import static com.dnake.smart.core.kit.ValidateKit.time;
 
 public class CommandManager {
 
@@ -44,7 +44,7 @@ public class CommandManager {
 			while (true) {
 				MAP.forEach((dest, list) -> {
 					Message data = list.peek();
-					if (data != null && data.isSend() && validateTime(data.getTime(), Config.MESSAGE_SEND_AWAIT)) {
+					if (data != null && data.isSend() && time(data.getTime(), Config.MESSAGE_SEND_AWAIT)) {
 						list.poll();
 					}
 				});

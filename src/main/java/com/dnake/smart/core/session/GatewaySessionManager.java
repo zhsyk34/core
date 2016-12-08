@@ -18,24 +18,6 @@ import java.util.concurrent.TimeUnit;
 public class GatewaySessionManager {
 
 	@Getter
-	@Setter
-	@ToString
-	@NoArgsConstructor
-	@Accessors(chain = true)
-	private static class GatewayInfo {
-		private int id;
-		private String sn;
-		private String udid;
-		private String ip;
-		private int tcpPort;
-		private int udpPort;//分配的端口号(unique)
-		private int curUdpPort;//实际(外网)连接的端口号
-		private long createTime;//首次连接时间
-		private long updateTime;//心跳时更新时间
-		private String version;
-	}
-
-	@Getter
 	private static final Map<String, GatewayInfo> map = new HashMap<>();
 
 	//TODO:TASK
@@ -75,6 +57,24 @@ public class GatewaySessionManager {
 			map.put(udid, gatewayInfo);
 		}
 		return true;
+	}
+
+	@Getter
+	@Setter
+	@ToString
+	@NoArgsConstructor
+	@Accessors(chain = true)
+	private static class GatewayInfo {
+		private int id;
+		private String sn;
+		private String udid;
+		private String ip;
+		private int tcpPort;
+		private int udpPort;//分配的端口号(unique)
+		private int curUdpPort;//实际(外网)连接的端口号
+		private long createTime;//首次连接时间
+		private long updateTime;//心跳时更新时间
+		private String version;
 	}
 
 }

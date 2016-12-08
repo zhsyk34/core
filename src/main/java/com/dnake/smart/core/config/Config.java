@@ -23,9 +23,9 @@ public class Config {
 	public static final int UDP_CLIENT_INTERVAL = 5 * 60;
 
 	public static final int SERVER_BACKLOG = 1024;
-	//预计连接数
-	public static final int APP_PREDICT = 1 << 12;
-	public static final int GATEWAY_PREDICT = 1 << 11;
+	//预计并发连接数
+	public static final int APP_PREDICT = 1 << 10;
+	public static final int GATEWAY_PREDICT = 1 << 9;
 
 	/**
 	 * -----------------以下为超时设置,单位秒------------------
@@ -43,4 +43,9 @@ public class Config {
 	//信息发送后最长等待时间
 	public static final int MESSAGE_SEND_AWAIT = 15;
 
+	/**
+	 * logger
+	 */
+
+	public static final int LOGGER_CAPACITY = 5000;
 }

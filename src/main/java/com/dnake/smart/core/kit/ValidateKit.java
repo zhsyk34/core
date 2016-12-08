@@ -52,12 +52,13 @@ public class ValidateKit {
 	 * @param unit  有效时长单位
 	 * @return 是否在有效时间内
 	 */
-	public static boolean validateTime(long refer, long valid, TimeUnit unit) {
-		return System.currentTimeMillis() - refer > unit.toMillis(valid);
+	public static boolean time(long refer, long valid, TimeUnit unit) {
+		long delay = System.currentTimeMillis() - refer;
+		return delay >= 0 && delay < unit.toMillis(valid);
 	}
 
-	public static boolean validateTime(long refer, long valid) {
-		return validateTime(refer, valid, TimeUnit.SECONDS);
+	public static boolean time(long refer, long valid) {
+		return time(refer, valid, TimeUnit.SECONDS);
 	}
 
 }

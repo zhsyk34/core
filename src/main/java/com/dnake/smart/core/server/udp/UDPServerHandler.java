@@ -26,15 +26,6 @@ public class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket
 	private static final Logger logger = LoggerFactory.getLogger(UDPServerHandler.class);
 	private static final String CMD = "cmtHeartbeat";
 
-	@Getter
-	@Setter
-	@ToString
-	public static class HeartInfo {
-		private String action;
-		private String devSN;
-		private String appVersionNo;
-	}
-
 	private HeartInfo parse(DatagramPacket msg) {
 		String data = msg.content().toString(CharsetUtil.UTF_8);
 		if (ValidateKit.isEmpty(data)) {
@@ -53,8 +44,17 @@ public class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket
 			GatewaySessionManager.update(info, address);
 			response = CommandKit.correct();
 		} else {
-			response = CommandKit.wrong();
+			response = CommandKit.wrong(101);
 		}
 		ctx.writeAndFlush(new DatagramPacket(Unpooled.copiedBuffer(response, CharsetUtil.UTF_8), address));
+	}
+
+	@Getter
+	@Setter
+	@ToString
+	public static class HeartInfo {
+		private String action;
+		private String devSN;
+		private String appVersionNo;
 	}
 }

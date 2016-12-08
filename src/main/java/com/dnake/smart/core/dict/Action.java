@@ -1,8 +1,9 @@
-package com.dnake.smart.core.config;
+package com.dnake.smart.core.dict;
 
 import lombok.Getter;
 
-public enum Action {
+import java.util.HashMap;
+import java.util.Map;
 
 //	public static void main(String[] args) {
 //		String s = "1  ctrlScene  场景控制\n" +
@@ -38,15 +39,52 @@ public enum Action {
 //				"31  getVersion  智能网关获取服务器上最新软件版本信息";
 //	}
 
-	LOGINREQ(1, "登录请求");
+/**
+ * 可能的指令action,,只枚举服务端需要处理的情况,转包情况未列入
+ */
+@Getter
+public enum Action {
 
-	@Getter
-	private int index;
-	@Getter
-	private String description;
+	/**
+	 * 1.登录相关
+	 */
+	LOGIN_READY(1, 1, "loginReady", "登录通知"),
+	LOGIN_REQ(1, 2, "loginReq", "登录请求"),
+	LOGIN_VERIFY(1, 3, "loginVerify", "登录验证"),
 
-	Action(int index, String description) {
+	/**
+	 * 2.推送
+	 */
+	HEART_BEAT(4, 1, "cmtHeartbeat", "登录验证");
+
+	private static final Map<String, Action> map = new HashMap<>();
+
+	static {
+		for (Action action : values()) {
+			map.put(action.getName(), action);
+		}
+	}
+
+	private final int type;
+	private final int index;
+	private final String name;
+	private final String description;
+
+	/**
+	 * @param type        指令类型:1.登录相关,2.控制命令,3.设置命令,4.推送命令
+	 * @param index       指令编号
+	 * @param name        指令名称
+	 * @param description 指令描述
+	 */
+	Action(int type, int index, String name, String description) {
+		this.type = type;
 		this.index = index;
+		this.name = name;
 		this.description = description;
 	}
+
+	public static Action get(String name) {
+		return map.get(name);
+	}
+
 }

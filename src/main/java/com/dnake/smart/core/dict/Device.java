@@ -1,8 +1,8 @@
-package com.dnake.smart.core.session;
+package com.dnake.smart.core.dict;
 
 import lombok.Getter;
 
-enum Device {
+public enum Device {
 	GATEWAY(0, "智能网关"), APP(1, "手机应用程序");
 
 	@Getter
