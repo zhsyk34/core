@@ -7,20 +7,11 @@ public class Config {
 
 	public static final String LOCAL_HOST = "127.0.0.1";
 
-	//public static final String BROADCAST_HOST = "255.255.255.255";
-
 	/**
 	 *
 	 */
 	//TCP服务器默认端口
 	public static final int TCP_SERVER_PORT = 15999;
-
-	//UDP服务器默认端口
-	public static final int UDP_SERVER_PORT = 15998;
-	//网关发送UDP心跳包端口
-	public static final int UDP_CLIENT_PORT = 50000;
-	//网关发送UDP心跳包频率
-	public static final int UDP_CLIENT_INTERVAL = 5 * 60;
 
 	public static final int SERVER_BACKLOG = 1024;
 	//预计并发连接数
@@ -44,8 +35,21 @@ public class Config {
 	public static final int MESSAGE_SEND_AWAIT = 15;
 
 	/**
+	 * UDP配置
+	 */
+	//UDP服务器默认端口
+	public static final int UDP_SERVER_PORT = 15998;
+	//网关UDP端口分配起始地址(唯一)
+	public static final int UDP_CLIENT_MIN_PORT = 50000;
+	//网关发送UDP心跳包频率
+	public static final int UDP_CLIENT_INTERVAL = 10;
+	//网关(UDP心跳)最大下线时长,超过将起移出队列
+	public static final int UDP_MAX_IDLE = UDP_CLIENT_INTERVAL * 2;
+	//扫描网关在线状态
+	public static final int UDP_SCAN_TIME = 30 * 60;
+
+	/**
 	 * logger
 	 */
-
 	public static final int LOGGER_CAPACITY = 5000;
 }

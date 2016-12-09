@@ -2,6 +2,7 @@ package com.dnake.smart.core.server.tcp;
 
 import com.alibaba.fastjson.JSONObject;
 import com.dnake.smart.core.dict.*;
+import com.dnake.smart.core.dict.Error;
 import com.dnake.smart.core.kit.CodecKit;
 import com.dnake.smart.core.kit.JsonKit;
 import com.dnake.smart.core.kit.RandomKit;
@@ -16,108 +17,137 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import java.net.SocketAddress;
 
 /**
- * 处理登录或心跳(等不需要转包的数据)
+ * 处理登录
  */
 public class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 
 	//测试统计用
 	//private static final AtomicInteger count = new AtomicInteger();
 
-	//TODO
-	private void heart(ChannelHandlerContext ctx, JSONObject json) {
-	}
-
-	private boolean login(ChannelHandlerContext ctx, JSONObject json) {
-		JSONObject response = new JSONObject();
-		Channel channel = ctx.channel();
-
-		//1.处理登录请求
-		Device device = Device.get(json.getIntValue(CommandKey.TYPE.getName()));
-		String sn = json.getString(CommandKey.SN.getName());
-		int port = json.getIntValue(CommandKey.UDP_PORT.getName());
-		//1-1.错误的登录请求
-		if (device == null || (device == Device.GATEWAY && (ValidateKit.isEmpty(sn) || port < 1))) {
-			Log.logger(Category.EVENT, "错误的登录请求");
-			response.put(CommandKey.RESULT.getName(), Result.NO.getName());
-			response.put(CommandKey.ERRNO.getName(), ErrorCode.UNKNOWN.getNo());
-			ctx.writeAndFlush(response);
+	/**
+	 * 验证登录信息
+	 * 1.必需信息:clientType
+	 * 2.网关额外信息:devSn+UDPPort
+	 */
+	private boolean validate(Channel channel, JSONObject json) {
+		Device device = Device.get(json.getIntValue(Key.TYPE.getName()));
+		if (device == null) {
+			Log.logger(Category.EVENT, "无效的登录请求(未明确登录类型).");
 			return false;
 		}
+		//缓存登录类型
+		channel.attr(SessionAttributeKey.TYPE).set(device);
 
-		//1-2.处理登录请求
-		//将登录信息缓存在channel上,待通过验证后再统一管理;同时可实现sn与channel的双向绑定
-		Log.logger(Category.EVENT, "正在处理登录请求");
+		switch (device) {
+			case APP:
+				Log.logger(Category.EVENT, "APP登录请求");
+				return true;
+			case GATEWAY:
+				String sn = json.getString(Key.SN.getName());
+				Integer apply = json.getIntValue(Key.UDP_PORT.getName());
 
-		channel.attr(SessionAttributeKey.TYPE).set(device);//{1}
-		if (device == Device.GATEWAY) {
-			channel.attr(SessionAttributeKey.SN).set(sn);//{2}
-			channel.attr(SessionAttributeKey.UDP_PORT).set(port);//{3}
+				if ((ValidateKit.isEmpty(sn) || ValidateKit.invalid(apply))) {
+					Log.logger(Category.EVENT, "网关登录出错(请求数据错误)");
+					return false;
+				}
+
+				Log.logger(Category.EVENT, "网关登录请求");
+				//将网关额外的登录信息缓存在channel上,待通过验证后再统一管理;同时可实现sn与channel的双向绑定
+				channel.attr(SessionAttributeKey.SN).set(sn);//{gateway-1}
+				channel.attr(SessionAttributeKey.UDP_PORT).set(apply);//{gateway-2}
+
+				return true;
+			default:
+				Log.logger(Category.EVENT, "无效的登录请求(未知的登录类型).");
+				return false;
 		}
 
-		//2.发送本次登录的验证信息,缓存登录验证码
-		int group = RandomKit.randomInteger(0, 49);
-		int offset = RandomKit.randomInteger(0, 9);
-
-		response.put(CommandKey.ACTION.getName(), Action.LOGIN_VERIFY.getName());
-		//2-1.验证信息
-		response.put(CommandKey.KEY.getName(), CodecKit.loginKey(group, offset));
-
-		//2-2.验证码
-		channel.attr(SessionAttributeKey.KEYCODE).set(CodecKit.loginVerify(group, offset));//{4}
-		ctx.writeAndFlush(response);
-		return true;
 	}
 
-	//登录验证
-	private void verify(ChannelHandlerContext ctx, String keyCode) {
+	/**
+	 * 处理登录请求
+	 * 1.非法或错误的请求将被拒绝
+	 * 2.否则发送验证码
+	 */
+	private void login(ChannelHandlerContext ctx, JSONObject json) {
 		JSONObject response = new JSONObject();
-		Channel channel = ctx.channel();
-
-		Device device = channel.attr(SessionAttributeKey.TYPE).get();
-		String verify = channel.attr(SessionAttributeKey.KEYCODE).get();
-		String sn = channel.attr(SessionAttributeKey.SN).get();
-		Integer apply = channel.attr(SessionAttributeKey.UDP_PORT).get();//请求端口
-
-		Log.logger(Category.EVENT, "客户端[" + channel.remoteAddress() + "] 进行登录验证[" + keyCode + "],正确的验证码为[" + verify + "]");
-
-		//非法登录
-		if (ValidateKit.isEmpty(verify) || device == null || (device == Device.GATEWAY && (ValidateKit.isEmpty(sn) || apply == null || apply < 0))) {
-			Log.logger(Category.EVENT, "非法登录");
+		if (!validate(ctx.channel(), json)) {
+			response.put(Key.RESULT.getName(), Result.NO.getName());
+			response.put(Key.ERRNO.getName(), Error.UNKNOWN.getNo());
+			ctx.channel().writeAndFlush(response);
+			//关闭连接
+			ctx.channel().close();
+			Log.logger(Category.EVENT, "无效的登录请求,拒绝连接");
 			return;
 		}
 
+		int group = RandomKit.randomInteger(0, 49);
+		int offset = RandomKit.randomInteger(0, 9);
+		response.put(Key.ACTION.getName(), Action.LOGIN_VERIFY.getName());
+		//本次登录的验证信息
+		response.put(Key.KEY.getName(), CodecKit.loginKey(group, offset));
+		//缓存本次登录的验证码
+		ctx.channel().attr(SessionAttributeKey.KEYCODE).set(CodecKit.loginVerify(group, offset));
+
+		ctx.writeAndFlush(response);
+	}
+
+	/**
+	 * 通过验证码进行登录验证
+	 * 验证码在此前步骤已被缓存
+	 */
+	private boolean verify(Channel channel, String keyCode) {
+		//必需信息
+		Device device = channel.attr(SessionAttributeKey.TYPE).get();
+		String verify = channel.attr(SessionAttributeKey.KEYCODE).get();
+		//网关额外信息
+		String sn = channel.attr(SessionAttributeKey.SN).get();
+		Integer apply = channel.attr(SessionAttributeKey.UDP_PORT).get();
+
+		//非法登录
+		if (ValidateKit.isEmpty(verify) || device == null || (device == Device.GATEWAY && (ValidateKit.isEmpty(sn) || ValidateKit.invalid(apply)))) {
+			Log.logger(Category.EVENT, "非法登录");
+			return false;
+		}
+
+		Log.logger(Category.EVENT, "客户端[" + channel.remoteAddress() + "] 进行登录验证[" + keyCode + "],正确的验证码为[" + verify + "]");
 		//验证码错误
 		if (!verify.equals(keyCode)) {
 			Log.logger(Category.EVENT, "登录验证码错误");
-			response.put(CommandKey.RESULT.getName(), Result.NO.getName());
-			response.put(CommandKey.ERRNO.getName(), ErrorCode.UNKNOWN.getNo());
+			return false;
+		}
+
+		Log.logger(Category.EVENT, "验证码通过");
+		return true;
+	}
+
+	/**
+	 * 登录处理
+	 */
+	private void pass(ChannelHandlerContext ctx, String keyCode) {
+		JSONObject response = new JSONObject();
+		Channel channel = ctx.channel();
+
+		if (!verify(channel, keyCode)) {
+			response.put(Key.RESULT.getName(), Result.NO.getName());
+			response.put(Key.ERRNO.getName(), Error.UNKNOWN.getNo());
 			ctx.writeAndFlush(response);
 			TCPSessionManager.close(channel);
 			return;
 		}
 
-		Log.logger(Category.EVENT, "验证码通过");
-		switch (device) {
-			case APP:
-				Log.logger(Category.EVENT, "app尝试登录");
-				break;
-			case GATEWAY:
-				Log.logger(Category.EVENT, "网关尝试登录");
-				int port = TCPSessionManager.allocate(sn, apply);
-				response.put(CommandKey.UDP_PORT.getName(), port);
-				break;
-			default:
-				Log.logger(Category.EVENT, "未知设备类型");
-				break;
+		int allocation = TCPSessionManager.pass(channel);
+
+		if (allocation == -1) {
+			response.put(Key.RESULT.getName(), Result.NO.getName());
+			response.put(Key.ERRNO.getName(), Error.TIMEOUT.getNo());
+			ctx.writeAndFlush(response);
+			TCPSessionManager.close(channel);
 		}
 
-		//可能存在登录超时
-		boolean pass = TCPSessionManager.pass(channel);
-		if (pass) {
-			response.put(CommandKey.RESULT.getName(), Result.OK.getName());
-		} else {
-			response.put(CommandKey.RESULT.getName(), Result.NO.getName());
-			response.put(CommandKey.ERRNO.getName(), ErrorCode.TIMEOUT.getNo());
+		response.put(Key.RESULT.getName(), Result.OK.getName());
+		if (allocation > 0) {
+			response.put(Key.UDP_PORT.getName(), allocation);
 		}
 		ctx.writeAndFlush(response);
 
@@ -129,7 +159,7 @@ public class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 			return;
 		}
 		String command = (String) msg;
-		Log.logger(Category.EVENT, "command:\n" + command);
+		Log.logger(Category.RECEIVE, "command:\n" + command);
 
 		Channel channel = ctx.channel();
 		SocketAddress address = channel.remoteAddress();
@@ -138,28 +168,25 @@ public class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 		//Log.logger(Category.EVENT,  address + "---valid count:" + count.incrementAndGet());
 
 		JSONObject json = JsonKit.map(command);
-		Action action = Action.get(json.getString(CommandKey.ACTION.getName()));
+		Action action = Action.get(json.getString(Key.ACTION.getName()));
 
 		//心跳
 		if (action == Action.HEART_BEAT) {
 			Log.logger(Category.EVENT, "网关[" + address + "] 发送心跳.");
-			heart(ctx, json);
 			return;
 		}
 
 		//登录请求
 		if (action == Action.LOGIN_REQ) {
-			Log.logger(Category.EVENT, "客户端[" + address + "] 请求登录.");
 			login(ctx, json);
 			return;
 		}
 
 		//登录验证
-		String result = JsonKit.getString(command, CommandKey.RESULT.getName());
-		String keyCode = JsonKit.getString(command, CommandKey.KEYCODE.getName());
+		String result = JsonKit.getString(command, Key.RESULT.getName());
+		String keyCode = JsonKit.getString(command, Key.KEYCODE.getName());
 		if (Result.OK.getName().equals(result) && keyCode != null) {
-			verify(ctx, keyCode);
+			pass(ctx, keyCode);
 		}
-
 	}
 }

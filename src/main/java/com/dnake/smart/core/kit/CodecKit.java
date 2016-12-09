@@ -174,7 +174,10 @@ public class CodecKit {
 //		int position = 0;
 
 		byte[] bytes = new byte[10];
-		System.arraycopy(MATRIX, group * 10 + offset, bytes, 0, bytes.length);
+		for (int i = 0; i < bytes.length; i++) {
+			bytes[i] = MATRIX[(group * 10 + offset + i) % MATRIX.length];
+		}
+//		System.arraycopy(MATRIX, group * 10 + offset, bytes, 0, bytes.length);
 //		while (position < bytes.length) {
 //			bytes[position] = MATRIX[(index + position++) % 500];
 //		}

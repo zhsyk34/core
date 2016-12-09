@@ -15,7 +15,7 @@ public class RandomKit {
 
 	public static char randomChar() {
 		String charStr = "abcdefghijklmnopqrstuvwxyz";
-		return charStr.charAt((int) (Math.random() * 26));
+		return charStr.charAt(randomInteger(0, 25));
 	}
 
 	public static String randomString(int length) {

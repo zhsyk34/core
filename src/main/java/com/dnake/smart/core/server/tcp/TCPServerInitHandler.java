@@ -13,19 +13,19 @@ public class TCPServerInitHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		Log.logger(Category.EVENT, ctx.channel().remoteAddress() + " 发起连接.");
+		Log.logger(Category.EVENT, ctx.channel().remoteAddress() + " 发起连接");
 		TCPSessionManager.init(ctx.channel());
 	}
 
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		Log.logger(Category.EVENT, ctx.channel().remoteAddress() + " 关闭连接.");
+		Log.logger(Category.EVENT, ctx.channel().remoteAddress() + " 关闭连接");
 		TCPSessionManager.close(ctx.channel());
 	}
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		Log.logger(Category.EVENT, ctx.channel().remoteAddress() + " 发生错误.");
+		Log.logger(Category.EXCEPTION, ctx.channel().remoteAddress() + " 发生错误");
 		TCPSessionManager.close(ctx.channel());
 	}
 

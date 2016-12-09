@@ -1,4 +1,4 @@
-package com.dnake.smart.core.session;
+package com.dnake.smart.core.reply;
 
 import com.dnake.smart.core.config.Config;
 

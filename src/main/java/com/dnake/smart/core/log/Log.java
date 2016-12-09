@@ -21,12 +21,17 @@ public class Log {
 	private final static LinkedBlockingQueue<Content> queue;
 
 	/**
-	 * 日志记录器
+	 * TCP日志记录器
 	 */
 	private final static Logger receiveLogger;
 	private final static Logger sendLogger;
 	private final static Logger exceptionLogger;
 	private final static Logger eventLogger;
+
+	/**
+	 * UDP日志记录
+	 */
+	private final static Logger udpLogger;
 
 	static {
 		queue = new LinkedBlockingQueue<>(LOGGER_CAPACITY);
@@ -35,6 +40,7 @@ public class Log {
 		sendLogger = LoggerFactory.getLogger(name + ".send");
 		exceptionLogger = LoggerFactory.getLogger(name + ".exception");
 		eventLogger = LoggerFactory.getLogger(name + ".event");
+		udpLogger = LoggerFactory.getLogger(name + ".udp");
 
 		//execute();
 	}
@@ -85,6 +91,9 @@ public class Log {
 						break;
 					case EVENT:
 						write(eventLogger, level, message);
+						break;
+					case UDP:
+						write(udpLogger, level, message);
 						break;
 					default:
 						break;

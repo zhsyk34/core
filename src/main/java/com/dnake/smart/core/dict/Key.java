@@ -8,11 +8,12 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum CommandKey {
+public enum Key {
 	ACTION("action", "指令"),
 	RESULT("result", "结果"),
 	TYPE("clientType", "设备类型"),
 	SN("devSN", "网关SN码"),
+	VERSION("appVersionNo", "网关版本"),
 	UDP_PORT("UDPPort", "网关UDP端口"),
 	ERRNO("errno", "错误码"),
 	KEY("key", "密钥信息"),

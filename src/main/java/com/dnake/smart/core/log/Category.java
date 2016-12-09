@@ -7,5 +7,6 @@ public enum Category {
 	RECEIVE,
 	SEND,
 	EXCEPTION,
-	EVENT
+	EVENT,
+	UDP
 }

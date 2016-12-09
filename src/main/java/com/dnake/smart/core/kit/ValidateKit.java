@@ -38,6 +38,14 @@ public class ValidateKit {
 		return !isEmpty(array);
 	}
 
+	public static boolean invalid(Integer key) {
+		return key == null || key <= 0;
+	}
+
+	public static boolean valid(Integer key) {
+		return !invalid(key);
+	}
+
 	public static boolean invalid(Long key) {
 		return key == null || key <= 0;
 	}
