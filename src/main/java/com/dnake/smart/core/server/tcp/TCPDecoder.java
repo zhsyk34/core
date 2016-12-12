@@ -8,8 +8,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.util.CharsetUtil;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static com.dnake.smart.core.dict.Packet.*;
@@ -90,7 +90,7 @@ class TCPDecoder extends ByteToMessageDecoder {
 
 		//footer
 		if (in.readByte() == FOOTER[0] && in.readByte() == FOOTER[1]) {
-			String command = new String(DESKit.decrypt(data), StandardCharsets.UTF_8);
+			String command = new String(DESKit.decrypt(data), CharsetUtil.UTF_8);
 			Log.logger(Category.RECEIVE, "帧尾校验通过,获取数据:\n" + command);
 			out.add(command);
 			return;

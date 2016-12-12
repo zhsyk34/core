@@ -53,15 +53,18 @@ public enum Action {
 	LOGIN_VERIFY(1, 3, "loginVerify", "登录验证"),
 
 	/**
-	 * 2.推送
+	 * 4.推送
 	 */
-	HEART_BEAT(4, 1, "cmtHeartbeat", "登录验证");
+	HEART_BEAT(4, 1, "cmtHeartbeat", "登录验证"),
+	UNLOCK(4, 1, "cmtUnlock", "开锁信息"),
+	ALARM(4, 1, "cmtAlarm", "报警信息"),
+	DEV_INFO(4, 1, "cmtDevInfo", "设备信息");
 
-	private static final Map<String, Action> map = new HashMap<>();
+	private static final Map<String, Action> MAP = new HashMap<>();
 
 	static {
 		for (Action action : values()) {
-			map.put(action.getName(), action);
+			MAP.put(action.getName(), action);
 		}
 	}
 
@@ -72,7 +75,7 @@ public enum Action {
 
 	/**
 	 * @param type        指令类型:1.登录相关,2.控制命令,3.设置命令,4.推送命令
-	 * @param index       指令编号
+	 * @param index       指令编号(暂时无用)
 	 * @param name        指令名称
 	 * @param description 指令描述
 	 */
@@ -84,7 +87,7 @@ public enum Action {
 	}
 
 	public static Action get(String name) {
-		return map.get(name);
+		return MAP.get(name);
 	}
 
 }

@@ -1,11 +1,13 @@
 package com.dnake.smart.core.reply;
 
-import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.kit.ValidateKit;
+import com.dnake.smart.core.log.Category;
+import com.dnake.smart.core.log.Log;
 
 import java.util.Map;
 import java.util.concurrent.*;
 
-import static com.dnake.smart.core.kit.ValidateKit.time;
+import static com.dnake.smart.core.config.Config.MESSAGE_SEND_AWAIT;
 
 public class CommandManager {
 
@@ -15,6 +17,8 @@ public class CommandManager {
 		if (message == null) {
 			return false;
 		}
+		Log.logger(Category.EVENT, "将请求:\n" + message + "\n添加到待处理队列中");
+
 		BlockingQueue<Message> queue;
 		String dest = message.getDest();
 
@@ -23,6 +27,7 @@ public class CommandManager {
 				queue = MAP.get(dest);
 			} else {
 				queue = new LinkedBlockingQueue<>();
+				MAP.put(dest, queue);
 			}
 		}
 
@@ -44,7 +49,7 @@ public class CommandManager {
 			while (true) {
 				MAP.forEach((dest, list) -> {
 					Message data = list.peek();
-					if (data != null && data.isSend() && time(data.getTime(), Config.MESSAGE_SEND_AWAIT)) {
+					if (data != null && data.isSend() && !ValidateKit.time(data.getTime(), MESSAGE_SEND_AWAIT)) {
 						list.poll();
 					}
 				});

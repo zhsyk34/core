@@ -2,14 +2,14 @@ package com.dnake.smart.core.server.tcp;
 
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
-import com.dnake.smart.core.session.TCPSessionManager;
+import com.dnake.smart.core.session.tcp.TCPSessionManager;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 /**
  * 监听TCP连接事件
  */
-public class TCPServerInitHandler extends ChannelInboundHandlerAdapter {
+class TCPInitHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -19,7 +19,7 @@ public class TCPServerInitHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		Log.logger(Category.EVENT, ctx.channel().remoteAddress() + " 关闭连接");
+		Log.logger(Category.EXCEPTION, ctx.channel().remoteAddress() + " 关闭连接");
 		TCPSessionManager.close(ctx.channel());
 	}
 

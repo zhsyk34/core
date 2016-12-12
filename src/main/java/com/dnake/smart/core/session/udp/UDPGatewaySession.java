@@ -1,4 +1,4 @@
-package com.dnake.smart.core.session;
+package com.dnake.smart.core.session.udp;
 
 import lombok.Getter;
 import lombok.Setter;

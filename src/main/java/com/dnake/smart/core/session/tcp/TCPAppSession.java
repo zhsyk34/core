@@ -1,4 +1,4 @@
-package com.dnake.smart.core.session;
+package com.dnake.smart.core.session.tcp;
 
 import io.netty.channel.Channel;
 import lombok.ToString;

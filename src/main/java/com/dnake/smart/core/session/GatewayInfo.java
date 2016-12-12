@@ -4,12 +4,12 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 网关信息
+ * 合并网关信息
  */
 @Getter
 @Setter
+@Deprecated
 public class GatewayInfo {
-
 	private String sn;
 	private String udid;//sn加密(冗余)
 

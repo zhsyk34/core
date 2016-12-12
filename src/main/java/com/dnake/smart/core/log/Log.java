@@ -137,6 +137,9 @@ public class Log {
 				case SEND:
 					level = LogLevel.INFO;
 					break;
+				case UDP:
+					level = LogLevel.INFO;
+					break;
 			}
 		}
 		try {
