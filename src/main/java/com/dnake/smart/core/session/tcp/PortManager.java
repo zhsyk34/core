@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public class PortManager {
+final class PortManager {
 
 	//UDP端口分配(ip,(sn,obj))
 	private static final Map<String, Map<String, UDPPortRecord>> PORT_MAP = new ConcurrentHashMap<>();
@@ -25,9 +25,10 @@ public class PortManager {
 	/**
 	 * 定时清理垃圾数据(ip地址改变导致的端口占用)
 	 */
-	public static void reduce() {
-		//转为(sn,(ip,obj))
+	static void reduce() {
+		//重新分组:转为(sn,(ip,record))
 		final Map<String, Map<String, UDPPortRecord>> snMap = new HashMap<>();
+
 		PORT_MAP.forEach((ip, map) -> map.forEach((sn, record) -> {
 			Map<String, UDPPortRecord> ipMap;
 			if (!snMap.containsKey(sn)) {
@@ -39,24 +40,31 @@ public class PortManager {
 
 			ipMap.put(ip, record);
 		}));
-		//
+
 		snMap.forEach((sn, map) -> {
-			//
-			if (map.size() > 1) {
-				LinkedHashMap<String, UDPPortRecord> linkMap = map.entrySet().stream()
-						.sorted((o1, o2) -> (int) (o1.getValue().getHappen() - o2.getValue().getHappen()))//map
-						.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
-
+			Log.logger(Category.EVENT, "网关[" + sn + "]占用的端口号数为" + map.size());
+			if (map.size() < 2) {
+				Log.logger(Category.EVENT, "占用端口号数 < 2,无需清理");
+				return;
 			}
-		});
+			//对需要移除的数据按照端口分配时间进行排序
+			LinkedHashMap<String, UDPPortRecord> linkMap = map.entrySet().stream().sorted((o1, o2) -> o2.getValue().getHappen() - o1.getValue().getHappen() > 0 ? 1 : -1).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-//		snMap.entrySet().stream().sorted(Map.Entry.comparingByValue())
-//				.collect(Collectors.toMap(
-//						Map.Entry::getKey,
-//						Map.Entry::getValue,
-//						(e1, e2) -> e1,
-//						LinkedHashMap::new
-//				));
+			UDPPortRecord last = linkMap.entrySet().iterator().next().getValue();
+			Log.logger(Category.EVENT, "网关[" + sn + "]最后使用的端口信息:[" + last + "]");
+			linkMap.forEach((ip, record) -> System.out.println(ip + ":" + record));
+
+			//开始移除(移除时与首元素再次进行比较)
+			linkMap.forEach((ip, record) -> {
+				Map<String, UDPPortRecord> tmp = PORT_MAP.get(ip);
+				if (tmp != null) {
+					UDPPortRecord udpPortRecord = tmp.get(sn);
+					if (udpPortRecord != null && udpPortRecord.getHappen() < last.getHappen()) {
+						tmp.remove(sn);
+					}
+				}
+			});
+		});
 	}
 
 	/**
@@ -65,7 +73,7 @@ public class PortManager {
 	 * @param apply 申请的端口
 	 * @return 为网关分配UDP端口
 	 */
-	public static int allocate(String sn, String ip, int apply) {
+	static int allocate(String sn, String ip, int apply) {
 		synchronized (PORT_MAP) {
 			Log.logger(Category.EVENT, "网关请求登录登录信息为[" + ip + " : " + apply + "]");
 
@@ -117,17 +125,4 @@ public class PortManager {
 		}
 	}
 
-	public static void main(String[] args) {
-		Map<String, String> map = new HashMap<>();
-		map.put("c", "ccccc");
-		map.put("a", "aaaaa");
-		map.put("b", "bbbbb");
-		map.put("d", "ddddd");
-
-		Map<String, String> r = map.entrySet().stream().sorted((o1, o2) -> o1.getValue().compareTo(o2.getValue()))
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
-		r.forEach((k, v) -> {
-			System.out.println(v);
-		});
-	}
 }

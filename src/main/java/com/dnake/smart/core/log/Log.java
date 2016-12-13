@@ -1,5 +1,6 @@
 package com.dnake.smart.core.log;
 
+import io.netty.handler.logging.LogLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.slf4j.Logger;
@@ -47,8 +48,6 @@ public class Log {
 
 	private static void write(org.slf4j.Logger logger, LogLevel level, String message) {
 		switch (level) {
-			case OFF:
-				break;
 			case ERROR:
 				logger.error(message);
 				break;
@@ -62,9 +61,6 @@ public class Log {
 				logger.debug(message);
 				break;
 			case TRACE:
-				logger.trace(message);
-				break;
-			case ALL:
 				logger.trace(message);
 				break;
 			default:
