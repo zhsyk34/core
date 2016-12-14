@@ -3,6 +3,7 @@ package com.dnake.smart.core.server.tcp;
 import com.dnake.smart.core.config.Config;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
+import com.dnake.smart.core.reply.MessageManager;
 import com.dnake.smart.core.session.tcp.TCPSessionManager;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -63,8 +64,12 @@ public class TCPServer {
 			ChannelFuture future = bootstrap.bind(Config.TCP_SERVER_PORT).sync();
 			Log.logger(Category.EVENT, TCPServer.class.getSimpleName() + " start at port : " + Config.TCP_SERVER_PORT);
 
-			//task
+			//TODO:task
+			//session manager
 			TCPSessionManager.monitor();
+
+			//message manager
+			MessageManager.process();
 
 			future.channel().closeFuture().sync();
 		} catch (InterruptedException e) {

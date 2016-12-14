@@ -16,9 +16,9 @@ import static com.dnake.smart.core.dict.Packet.*;
 import static com.dnake.smart.core.kit.CodecKit.validateVerify;
 
 /**
+ * TODO:数据校验长度如果过大将导致等待...
  * 解码TCP服务器接收到的数据
  */
-//TODO:in.discardReadBytes()线程执行？
 class TCPDecoder extends ByteToMessageDecoder {
 
 	@Override

@@ -1,5 +1,6 @@
 package com.dnake.smart.core.dict;
 
+import com.dnake.smart.core.kit.ValidateKit;
 import lombok.Getter;
 
 import java.util.HashMap;
@@ -58,7 +59,10 @@ public enum Action {
 	HEART_BEAT(4, 1, "cmtHeartbeat", "登录验证"),
 	UNLOCK(4, 1, "cmtUnlock", "开锁信息"),
 	ALARM(4, 1, "cmtAlarm", "报警信息"),
-	DEV_INFO(4, 1, "cmtDevInfo", "设备信息");
+	DEV_INFO(4, 1, "cmtDevInfo", "设备信息"),
+
+	//TODO:测试
+	TEST(5, 1, "test", "测试");
 
 	private static final Map<String, Action> MAP = new HashMap<>();
 
@@ -87,7 +91,7 @@ public enum Action {
 	}
 
 	public static Action get(String name) {
-		return MAP.get(name);
+		return ValidateKit.isEmpty(name) ? null : MAP.get(name);
 	}
 
 }

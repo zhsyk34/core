@@ -1,6 +1,5 @@
 package com.dnake.smart.core.session.tcp;
 
-import com.dnake.smart.core.config.Config;
 import com.dnake.smart.core.dict.Device;
 import com.dnake.smart.core.dict.SessionAttributeKey;
 import com.dnake.smart.core.kit.ConvertKit;
@@ -9,7 +8,6 @@ import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
 import io.netty.channel.Channel;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -99,10 +97,55 @@ public class TCPSessionManager {
 	}
 
 	public static int port(Channel channel) {
-		return channel.attr(SessionAttributeKey.UDP_PORT).get();
+		return ConvertKit.primitive(channel.attr(SessionAttributeKey.UDP_PORT).get());
 	}
 
 	/**
+	 * 缓存网关登录状态,用于过滤非法连接请求
+	 */
+	public static Channel pass(Channel channel, boolean pass) {
+		channel.attr(SessionAttributeKey.PASS).set(pass);
+		return channel;
+	}
+
+	public static boolean pass(Channel channel) {
+		return ConvertKit.primitive(channel.attr(SessionAttributeKey.PASS).get());
+	}
+
+	/**
+	 * TODO:重连
+	 * 转发客户端请求至网关
+	 *
+	 * @param sn  网关sn
+	 * @param msg 客户端的请求指令
+	 */
+	public static void forward(String sn, String msg) {
+		TCPGatewaySession gatewaySession = GATEWAY_MAP.get(sn);
+		if (gatewaySession == null) {
+			Log.logger(Category.EVENT, "网关[" + sn + "]已掉线");
+			return;
+		}
+		System.err.println("发送[" + msg + "] ==> 网关: " + sn);
+		gatewaySession.channel.writeAndFlush(msg);
+	}
+
+	/**
+	 * @param id  客户端连接标识
+	 * @param msg 网关对客户端请求的响应
+	 */
+	public static boolean respond(String id, String msg) {
+		TCPAppSession appSession = APP_MAP.get(id);
+		if (appSession == null) {
+			Log.logger(Category.EVENT, "客户端已下线");
+			return false;
+		}
+		Log.logger(Category.EVENT, ">>>>>>>>>>>>>>>>>>>>>>响应客户端");
+		appSession.channel.writeAndFlush(msg);
+		return true;
+	}
+
+	/**
+	 * TODO
 	 * 初始连接时保存数据
 	 */
 	public static void init(Channel channel) {
@@ -120,7 +163,7 @@ public class TCPSessionManager {
 	 *
 	 * @return 分配端口{-1:失败,0:APP,50000+:网关}
 	 */
-	public static int pass(Channel channel) {
+	public static int login(Channel channel) {
 		//1.通过登录验证,从 ACCEPT_MAP 中移除(可能存在超时)
 		String id = id(channel);
 		TCPBaseSession baseInfo = ACCEPT_MAP.remove(id);
@@ -175,9 +218,11 @@ public class TCPSessionManager {
 	 * WARN:通过SN查找网关可能查询到"后来的"的连接
 	 */
 	public static boolean close(Channel channel) {
-		if (channel == null) {
+		//TODO:重复关闭
+		if (channel == null || !channel.isOpen()) {
 			return true;
 		}
+		Log.logger(Category.EVENT, "关闭[" + channel.remoteAddress() + "]连接");
 		//先直接关闭channel
 		remove(channel);
 		//默认id
@@ -212,12 +257,12 @@ public class TCPSessionManager {
 				//网关队列key为sn,可能被后来的连接所覆盖
 				TCPGatewaySession gatewaySession = GATEWAY_MAP.get(sn);
 				if (gatewaySession == null) {
-					Log.logger(Category.EXCEPTION, channel.remoteAddress() + "网关关闭出错,在GATEWAY中查找不到该连接");
+					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 网关关闭出错,在GATEWAY中查找不到该连接");
 					return false;
 				}
 				//TODO:== or isOpen()
 				if (gatewaySession.channel.isOpen()) {
-					Log.logger(Category.EXCEPTION, channel.remoteAddress() + "该网关已重新上线");
+					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 该网关已重新上线");
 				} else {
 					GATEWAY_MAP.remove(sn);
 				}
@@ -238,47 +283,52 @@ public class TCPSessionManager {
 
 		//TODO:分别扫描
 		Runnable task = () -> {
-			Log.logger(Category.EVENT, "TCP扫描任务开始执行...");
-			//登录超时
-			Log.logger(Category.EVENT, "当前未登录连接:[" + ACCEPT_MAP.size() + "]");
-			ACCEPT_MAP.forEach((id, baseSession) -> {
-				if (!ValidateKit.time(baseSession.createTime, Config.LOGIN_TIME_OUT)) {
-					Log.logger(Category.EVENT, "超时未登录");
-					ACCEPT_MAP.remove(id);
-					remove(baseSession.channel);
-				}
-			});
-
-			//app在线超时
-			Log.logger(Category.EVENT, "当前APP连接:[" + APP_MAP.size() + "]");
-			APP_MAP.forEach((id, appSession) -> {
-				if (!ValidateKit.time(appSession.createTime, APP_TIME_OUT)) {
-					Log.logger(Category.EVENT, "APP在线时长已到,移除!");
-					APP_MAP.remove(id);
-					remove(appSession.channel);
-				}
-			});
-
-			//gateway在线超时:Iterator 获取最新数据
-			Log.logger(Category.EVENT, "当前网关连接:[" + GATEWAY_MAP.size() + "]");
-			Iterator<Map.Entry<String, TCPGatewaySession>> iterator = GATEWAY_MAP.entrySet().iterator();
-			while (iterator.hasNext()) {
-				TCPGatewaySession gatewaySession = iterator.next().getValue();
-				if (!ValidateKit.time(gatewaySession.createTime, GATEWAY_TIME_OUT)) {
-					iterator.remove();
-					remove(gatewaySession.channel);
-				}
-
-			}
-
-			GATEWAY_MAP.forEach((sn, appSession) -> {
-				if (appSession != null && !ValidateKit.time(appSession.createTime, GATEWAY_TIME_OUT)) {
-					Log.logger(Category.EVENT, "网关在线时长已到,移除!");
-					APP_MAP.remove(sn);
-					remove(appSession.channel);
-				}
-			});
+			System.err.println("共有[" + GATEWAY_MAP.size() + "]个网关在线");
+			GATEWAY_MAP.forEach((sn, ch) -> System.out.print(sn + "  "));
+			System.err.println("共有[" + APP_MAP.size() + "]个APP在线");
 		};
+//		Runnable task = () -> {
+//			Log.logger(Category.EVENT, "TCP扫描任务开始执行...");
+//			//登录超时
+//			Log.logger(Category.EVENT, "当前未登录连接:[" + ACCEPT_MAP.size() + "]");
+//			ACCEPT_MAP.forEach((id, baseSession) -> {
+//				if (!ValidateKit.time(baseSession.createTime, Config.LOGIN_TIME_OUT)) {
+//					Log.logger(Category.EVENT, "超时未登录");
+//					ACCEPT_MAP.remove(id);
+//					remove(baseSession.channel);
+//				}
+//			});
+//
+//			//app在线超时
+//			Log.logger(Category.EVENT, "当前APP连接:[" + APP_MAP.size() + "]");
+//			APP_MAP.forEach((id, appSession) -> {
+//				if (!ValidateKit.time(appSession.createTime, APP_TIME_OUT)) {
+//					Log.logger(Category.EVENT, "APP在线时长已到,移除!");
+//					APP_MAP.remove(id);
+//					remove(appSession.channel);
+//				}
+//			});
+//
+//			//gateway在线超时:Iterator 获取最新数据
+//			Log.logger(Category.EVENT, "当前网关连接:[" + GATEWAY_MAP.size() + "]");
+//			Iterator<Map.Entry<String, TCPGatewaySession>> iterator = GATEWAY_MAP.entrySet().iterator();
+//			while (iterator.hasNext()) {
+//				TCPGatewaySession gatewaySession = iterator.next().getValue();
+//				if (!ValidateKit.time(gatewaySession.createTime, GATEWAY_TIME_OUT)) {
+//					iterator.remove();
+//					remove(gatewaySession.channel);
+//				}
+//
+//			}
+//
+//			GATEWAY_MAP.forEach((sn, appSession) -> {
+//				if (!ValidateKit.time(appSession.createTime, GATEWAY_TIME_OUT)) {
+//					Log.logger(Category.EVENT, "网关在线时长已到,移除!");
+//					APP_MAP.remove(sn);
+//					remove(appSession.channel);
+//				}
+//			});
+//		};
 
 		service.scheduleAtFixedRate(task, 1, TCP_TIME_OUT_SCAN, TimeUnit.SECONDS);
 	}

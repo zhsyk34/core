@@ -28,7 +28,7 @@ public class Config {
 	//信息发送后等待响应最长时间
 	public static final int MESSAGE_SEND_AWAIT = 15;
 	//TCP管理(扫描)线程执行的间隔时长
-	public static final int TCP_TIME_OUT_SCAN = 20;
+	public static final int TCP_TIME_OUT_SCAN = 10;
 
 	/**
 	 * -----------------------------UDP配置-----------------------------
@@ -50,4 +50,11 @@ public class Config {
 	 * -----------------------------日志配置-----------------------------
 	 */
 	public static final int LOGGER_CAPACITY = 5000;
+
+	/**
+	 * -----------------------------时间配置-----------------------------
+	 */
+	//服务器启动时间
+	public static final String START_TIME = "2016-12-01";
+
 }

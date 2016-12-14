@@ -1,18 +1,18 @@
 package com.dnake.smart.core.session.tcp;
 
+import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.kit.ConvertKit;
 import io.netty.channel.Channel;
 import lombok.Getter;
 
 import java.net.InetSocketAddress;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 /**
  * 基础的会话信息
  */
 @Getter
-public class TCPBaseSession {
-	private static final long MIN_MILL = LocalDateTime.of(2016, 12, 1, 0, 0, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+class TCPBaseSession {
+	private static final long MIN_MILL = ConvertKit.from(ConvertKit.from(Config.START_TIME));
 
 	//连接通道
 	protected final Channel channel;

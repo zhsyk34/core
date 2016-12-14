@@ -1,8 +1,7 @@
 package com.dnake.smart.core.kit;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 
 public class ConvertKit {
 
@@ -10,8 +9,24 @@ public class ConvertKit {
 		return LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault());
 	}
 
-	public static void main(String[] args) {
-		System.out.println(from(System.currentTimeMillis()));
+	public static boolean primitive(Boolean bool) {
+		return bool == null ? false : bool;
+	}
+
+	public static int primitive(Integer integer) {
+		return integer == null ? -1 : integer;
+	}
+
+	public static LocalDateTime from(String str) {
+		try {
+			return LocalDateTime.parse(str, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+		} catch (Exception e) {
+			return LocalDateTime.of(LocalDate.parse(str, DateTimeFormatter.ofPattern("yyyy-MM-dd")), LocalTime.MIN);
+		}
+	}
+
+	public static long from(LocalDateTime time) {
+		return time.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 	}
 
 	public static String fillZero(int i, int length) {

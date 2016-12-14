@@ -14,4 +14,6 @@ public class SessionAttributeKey {
 	public static final AttributeKey<Integer> UDP_PORT = AttributeKey.newInstance(Key.UDP_PORT.getName());
 	//当前连接登录验证码
 	public static final AttributeKey<String> KEYCODE = AttributeKey.newInstance(Key.KEYCODE.getName());
+	//是否通过验证
+	public static final AttributeKey<Boolean> PASS = AttributeKey.newInstance("pass");
 }
