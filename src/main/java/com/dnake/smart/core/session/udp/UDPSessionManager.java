@@ -1,54 +1,74 @@
 package com.dnake.smart.core.session.udp;
 
+import com.alibaba.fastjson.JSONObject;
 import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.dict.Action;
+import com.dnake.smart.core.dict.Key;
 import com.dnake.smart.core.kit.ValidateKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
+import com.dnake.smart.core.server.udp.UDPServer;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.socket.DatagramPacket;
 
+import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * UDP心跳管理
  */
 public class UDPSessionManager {
 
-	private static final Map<String, UDPGatewaySession> UDP_GATEWAY = new ConcurrentHashMap<>();
+	/**
+	 * 网关UDP心跳记录,key=sn
+	 */
+	private static final Map<String, UDPSession> UDP_GATEWAY = new ConcurrentHashMap<>();
 
-	public static void append(UDPGatewaySession session) {
+	public static UDPSession search(String sn) {
+		return UDP_GATEWAY.get(sn);
+	}
+
+	public static void append(UDPSession session) {
 		UDP_GATEWAY.put(session.getSn(), session);
 	}
 
-	/**
-	 * 更新TCP为其分配端口的UDP端口
-	 *
-	 * @param sn         网关SN
-	 * @param allocation 分配出的端口
-	 */
-	public static void update(String sn, int allocation) {
-		UDPGatewaySession session = UDP_GATEWAY.get(sn);
-		if (session == null) {
-			Log.logger(Category.UDP, "网关:[" + sn + "]未登录(UDP心跳)");
-			return;
-		}
-		session.setAllocation(allocation);
+	public static void awake(InetSocketAddress target) {
+		JSONObject json = new JSONObject();
+		json.put(Key.ACTION.getName(), Action.LOGIN_READY.getName());
+		send(target, json);
 	}
 
+	public static void awake(String host, int port) {
+		awake(new InetSocketAddress(host, port));
+	}
+
+	/**
+	 * 清理过期的数据
+	 */
 	public static void monitor() {
-		ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-		service.scheduleAtFixedRate(() -> {
-			Iterator<Map.Entry<String, UDPGatewaySession>> iterator = UDP_GATEWAY.entrySet().iterator();
-			while (iterator.hasNext()) {
-				UDPGatewaySession session = iterator.next().getValue();
-				long createTime = session.getCreateTime();
-				if (ValidateKit.time(createTime, Config.UDP_MAX_IDLE)) {
-					iterator.remove();
-				}
+		Iterator<Map.Entry<String, UDPSession>> iterator = UDP_GATEWAY.entrySet().iterator();
+		while (iterator.hasNext()) {
+			UDPSession session = iterator.next().getValue();
+			long createTime = session.getCreateTime();
+			if (!ValidateKit.time(createTime, Config.UDP_MAX_IDLE)) {
+				iterator.remove();
 			}
-		}, 10, Config.UDP_SCAN_TIME, TimeUnit.SECONDS);
+		}
+	}
+
+	/**
+	 * @param target 目标地址
+	 * @param json   JSON数据
+	 */
+	private static void send(InetSocketAddress target, JSONObject json) {
+		if (UDPServer.getChannel() == null) {
+			Log.logger(Category.UDP, UDPServer.class.getSimpleName() + "尚未启动");
+			return;
+		}
+		ByteBuf buf = Unpooled.copiedBuffer(json.toString().getBytes());
+		UDPServer.getChannel().writeAndFlush(new DatagramPacket(buf, target));
 	}
 }

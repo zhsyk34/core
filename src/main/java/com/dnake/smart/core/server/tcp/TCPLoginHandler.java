@@ -41,12 +41,6 @@ class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 		JSONObject json = JsonKit.map(command);
 		Action action = Action.get(json.getString(Key.ACTION.getName()));
 
-		//TODO:心跳
-		if (action == Action.HEART_BEAT) {
-			Log.logger(Category.EVENT, "网关[" + address + "] 发送心跳");
-			return;
-		}
-
 		//登录请求
 		if (action == Action.LOGIN_REQ) {
 			ready(channel, json);

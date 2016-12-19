@@ -11,8 +11,7 @@ import static com.dnake.smart.core.kit.ByteKit.smallIntToByteArray;
 public class CodecKit {
 
 	private static final int MARK = 0xff;
-	//数据部分以外(冗余数据)的长度
-	private static final int REDUNDANT = HEADER.length + LENGTH_BYTES + VERIFY_BYTES + FOOTER.length;
+
 	//登录验证密钥矩阵
 	private static final byte[] MATRIX = {
 			0x49, 0x74, 0x27, 0x73, 0x74, 0x68, 0x65, 0x65, 0x71, 0x75,
@@ -170,34 +169,20 @@ public class CodecKit {
 	 * @return 登录验证码
 	 */
 	public static String loginVerify(int group, int offset) {
-//		int index = group * 10 + offset;
-//		int position = 0;
-
 		byte[] bytes = new byte[10];
 		for (int i = 0; i < bytes.length; i++) {
 			bytes[i] = MATRIX[(group * 10 + offset + i) % MATRIX.length];
 		}
-//		System.arraycopy(MATRIX, group * 10 + offset, bytes, 0, bytes.length);
-//		while (position < bytes.length) {
-//			bytes[position] = MATRIX[(index + position++) % 500];
-//		}
-//
-//		System.err.println(new String(bytes, CharsetUtil.UTF_8));
 		return new String(bytes, CharsetUtil.UTF_8);
 	}
 
-	public static String decode(byte[] bytes) {
-		if (bytes == null || bytes.length < MSG_MIN_LENGTH) {
-			return null;
-		}
-		return new String(bytes, HEADER.length + LENGTH_BYTES, bytes.length - REDUNDANT, CharsetUtil.UTF_8);
+	public static byte[] decode(byte[] bytes) {
+		return DESKit.decrypt(bytes);
 	}
 
-	public static String decode(ByteBuf buf) {
-		if (buf == null || buf.readableBytes() < MSG_MIN_LENGTH) {
-			return null;
-		}
-		return buf.toString(HEADER.length + LENGTH_BYTES, buf.readableBytes() - REDUNDANT, CharsetUtil.UTF_8);
+	public static ByteBuf decode(ByteBuf buf) {
+		byte[] bytes = ByteKit.getBytes(buf);
+		return Unpooled.wrappedBuffer(decode(bytes));
 	}
 
 }

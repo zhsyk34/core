@@ -15,6 +15,8 @@ public class Packet {
 	public static final int DATA_MIN_BYTES = 1;
 	//verifyKey
 	public static final int VERIFY_BYTES = 2;
+	//数据部分以外(冗余数据)的长度
+	public static final int REDUNDANT = HEADER.length + LENGTH_BYTES + VERIFY_BYTES + FOOTER.length;
 	//total
-	public static final int MSG_MIN_LENGTH = HEADER.length + LENGTH_BYTES + DATA_MIN_BYTES + VERIFY_BYTES + FOOTER.length;
+	public static final int MSG_MIN_LENGTH = REDUNDANT + DATA_MIN_BYTES;
 }

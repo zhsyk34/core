@@ -135,7 +135,7 @@ public class ByteKit {
 		return result;
 	}
 
-	private static byte[] getBytes(ByteBuf buf) {
+	public static byte[] getBytes(ByteBuf buf) {
 		if (buf.hasArray()) {
 			return buf.array();
 		}

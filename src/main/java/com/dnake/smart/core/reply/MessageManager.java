@@ -7,89 +7,110 @@ import com.dnake.smart.core.session.tcp.TCPSessionManager;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.dnake.smart.core.config.Config.MESSAGE_SEND_AWAIT;
 
 public class MessageManager {
-	private static final Map<String, MessageQueue> MAP = new ConcurrentHashMap<>();
-	private static final List<Record> DB_LIST = new CopyOnWriteArrayList<>();
+	/**
+	 * app请求消息处理队列
+	 */
+	private static final Map<String, MessageQueue> APP_MESSAGE = new ConcurrentHashMap<>();
 
 	/**
-	 * APP 请求
+	 * 网关推送消息处理队列
+	 */
+	private static final List<Record> GATEWAY_PUSH = new CopyOnWriteArrayList<>();
+
+	/**
+	 * 将app请求添加到消息处理队列
+	 *
+	 * @param sn      app请求的网关
+	 * @param message app请求的相关信息
+	 * @return 是否受理
 	 */
 	public static boolean request(String sn, Message message) {
 		final MessageQueue queue;
-		synchronized (MAP) {
-			if (MAP.containsKey(sn)) {
-				queue = MAP.get(sn);
+		synchronized (APP_MESSAGE) {
+			if (APP_MESSAGE.containsKey(sn)) {
+				queue = APP_MESSAGE.get(sn);
 			} else {
-				queue = new MessageQueue();
-				MAP.put(sn, queue);
+				queue = MessageQueue.instance();
+				APP_MESSAGE.put(sn, queue);
 			}
 		}
-		return queue.append(message);
+		return queue.offer(message);
 	}
 
 	/**
-	 * 网关响应
+	 * 网关响应app请求后,从起将相应的队列中移除
+	 *
+	 * @param sn       受理的网关
+	 * @param response 网关的回复
 	 */
-	public static void response(String sn, String command) {
-		MessageQueue queue = MAP.get(sn);
-		if (queue == null || ValidateKit.isEmpty(queue.getList())) {
-			Log.logger(Category.EVENT, "消息队列已被清空");
+	public static void response(String sn, String response) {
+		MessageQueue queue = APP_MESSAGE.get(sn);
+		if (ValidateKit.isEmpty(queue.getQueue())) {
+			Log.logger(Category.EVENT, "消息队列已被清空(网关异常导致响应超时)");
 			return;
 		}
-		try {
-			Message message = queue.getList().take();
-			String app = message.getSrc();
-			queue.setSend(false);
-			TCPSessionManager.respond(app, command);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
 
-	/**
-	 * 循环扫描处理消息队列
-	 */
-	public static void process() {
-		ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-		Runnable task = () -> {
-			Log.logger(Category.EVENT, "开始处理消息队列,共[" + MAP.size() + "]条");
-			MAP.forEach((sn, queue) -> {
-				BlockingQueue<Message> list = queue.getList();
-				Message message = list.peek();
-				if (message != null && !queue.isSend()) {
-					TCPSessionManager.forward(sn, message.getCommand());
-					queue.setSend(true);
-				}
-			});
-		};
-		service.scheduleWithFixedDelay(task, 1, 5, TimeUnit.SECONDS);
+		Message message = queue.take();
+		if (message != null) {
+			TCPSessionManager.respond(message.getSrc(), response);
+		}
 	}
 
 	/**
 	 * 保存网关推送的数据
 	 */
 	public static void save(String sn, String command) {
-		DB_LIST.add(new Record(sn, command));
+		GATEWAY_PUSH.add(new Record(sn, command));
 	}
 
-//	/**
-//	 * 移除响应时间超时(自发送起**秒内未及时回复)的消息
-//	 */
-//	public static void monitor() {
-////		ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-////		Runnable task = () -> {
-////			while (true) {
-////				MAP.forEach((sn, list) -> {
-////					Message data = list.peek();
-////					if (data != null && data.isSend() && !ValidateKit.time(data.getTime(), MESSAGE_SEND_AWAIT)) {
-////						list.poll();
-////					}
-////				});
-////			}
-////		};
-////		service.schedule(task, 0, TimeUnit.SECONDS);
-//	}
+	/**
+	 * 处理app消息队列
+	 */
+	public static void process() {
+		AtomicInteger count = new AtomicInteger();
+
+		APP_MESSAGE.forEach((sn, queue) -> {
+			int size = queue.getQueue().size();
+			count.addAndGet(size);
+			Message message = queue.peek();
+			if (message != null) {
+				TCPSessionManager.forward(sn, message.getCommand());
+			}
+		});
+
+		Log.logger(Category.EVENT, "开始处理消息队列,共[" + count.get() + "]条");
+	}
+
+	/**
+	 * 持久化数据
+	 */
+	public static void persistent() {
+		GATEWAY_PUSH.forEach(record -> {
+			System.out.println(record.getSn());
+			System.out.println(record.getCommand());
+		});
+	}
+
+	/**
+	 * TODO:关闭连接同时移除队列中所有数据并进行回复
+	 * 移除响应时间超时(自发送起**秒内未及时回复)的消息
+	 */
+	public static void monitor() {
+		APP_MESSAGE.forEach((sn, queue) -> {
+			if (queue.isSend()) {
+				if (!ValidateKit.time(queue.getTime(), MESSAGE_SEND_AWAIT)) {
+					Log.logger(Category.EXCEPTION, "消息响应超时,关闭连接");
+					queue.take();
+				}
+			}
+		});
+	}
 
 }

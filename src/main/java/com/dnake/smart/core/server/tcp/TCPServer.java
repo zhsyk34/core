@@ -1,10 +1,10 @@
 package com.dnake.smart.core.server.tcp;
 
 import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.kit.ThreadKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
-import com.dnake.smart.core.reply.MessageManager;
-import com.dnake.smart.core.session.tcp.TCPSessionManager;
+import com.dnake.smart.core.task.TaskHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
@@ -12,6 +12,9 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * TCP服务器
@@ -21,10 +24,18 @@ public class TCPServer {
 	private static volatile boolean started = false;
 
 	public static void start() {
+		ExecutorService service = Executors.newSingleThreadExecutor();
+		service.submit(TCPServer::init);
+		while (!started) {
+			Log.logger(Category.EVENT, TCPServer.class.getSimpleName() + " 正在启动...");
+			ThreadKit.await(100);
+		}
+	}
+
+	private static synchronized void init() {
 		if (started) {
 			return;
 		}
-		started = true;
 
 		ServerBootstrap bootstrap = new ServerBootstrap();
 
@@ -62,14 +73,10 @@ public class TCPServer {
 
 		try {
 			ChannelFuture future = bootstrap.bind(Config.TCP_SERVER_PORT).sync();
-			Log.logger(Category.EVENT, TCPServer.class.getSimpleName() + " start at port : " + Config.TCP_SERVER_PORT);
-
-			//TODO:task
-			//session manager
-			TCPSessionManager.monitor();
-
-			//message manager
-			MessageManager.process();
+			Log.logger(Category.EVENT, TCPServer.class.getSimpleName() + " 在端口[" + Config.TCP_SERVER_PORT + "]启动成功");
+			started = true;
+			//task
+			TaskHandler.execute();
 
 			future.channel().closeFuture().sync();
 		} catch (InterruptedException e) {

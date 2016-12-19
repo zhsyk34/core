@@ -1,20 +1,18 @@
 package com.dnake.smart.core.server.udp;
 
+import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.kit.ThreadKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
-import io.netty.util.CharsetUtil;
+import lombok.Getter;
 
-import java.net.InetSocketAddress;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.dnake.smart.core.config.Config.UDP_SERVER_PORT;
 
@@ -23,44 +21,49 @@ import static com.dnake.smart.core.config.Config.UDP_SERVER_PORT;
  */
 public class UDPServer {
 
-	private static final AtomicBoolean started = new AtomicBoolean(false);
+	private static volatile boolean started = false;
+
+	@Getter
 	private static Channel channel;
 
 	public static void start() {
-		new Thread(() -> {
-			init();
-		}).start();
+		ExecutorService service = Executors.newSingleThreadExecutor();
+		service.submit(UDPServer::init);
+		while (!started) {
+			Log.logger(Category.EVENT, UDPServer.class.getSimpleName() + " 正在启动...");
+			ThreadKit.await(Config.START_MONITOR_TIME * 1000);
+		}
 	}
 
 	public static void init() {
-//		if (started.get()) {
-//			return;
-//		}
+		if (started) {
+			return;
+		}
+
 		Bootstrap bootstrap = new Bootstrap();
 		EventLoopGroup group = new NioEventLoopGroup();
 		try {
 			bootstrap.group(group).channel(NioDatagramChannel.class);
-			bootstrap.option(ChannelOption.SO_BROADCAST, true);
-			bootstrap.handler(new UDPServerHandler());
+			bootstrap.option(ChannelOption.SO_BROADCAST, false);
+			bootstrap.handler(new ChannelInitializer<DatagramChannel>() {
+				@Override
+				protected void initChannel(DatagramChannel ch) throws Exception {
+					ChannelPipeline pipeline = ch.pipeline();
+					pipeline.addLast(new UDPCoder());
+					pipeline.addLast(new UDPServerHandler());
+				}
+			});
 
 			channel = bootstrap.bind(UDP_SERVER_PORT).syncUninterruptibly().channel();
-//			channel = bootstrap.bind(UDP_SERVER_PORT).sync().channel();
-			started.set(true);
-			Log.logger(Category.UDP, UDPServer.class.getSimpleName() + " start at port : " + UDP_SERVER_PORT);
-			System.err.println(">>>>>>>>>>>>>>>>started!!!");
+			Log.logger(Category.UDP, UDPServer.class.getSimpleName() + " 在端口[" + UDP_SERVER_PORT + "]启动完毕");
+
+			started = true;
+
 			channel.closeFuture().await();
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			group.shutdownGracefully();
 		}
-	}
-
-	public static void send(String host, int port, Object msg) {
-		Log.logger(Category.EXCEPTION, UDPServer.class.getSimpleName() + "启动完毕");
-		ByteBuf buf = Unpooled.copiedBuffer((String) msg, CharsetUtil.UTF_8);
-		DatagramPacket packet = new DatagramPacket(buf, new InetSocketAddress(host, port));
-		channel.writeAndFlush(packet);
-		Log.logger(Category.SEND, "数据已发出");
 	}
 }

@@ -11,4 +11,13 @@ public enum Result {
 
 	private String name;
 	private String description;
+
+	public static Result get(String name) {
+		for (Result result : values()) {
+			if (result.getName().equals(name)) {
+				return result;
+			}
+		}
+		return null;
+	}
 }

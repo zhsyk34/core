@@ -9,6 +9,7 @@ import java.time.ZoneId;
 /**
  * TODO:合并session?
  */
+@Deprecated
 public class TCPSession {
 	private static final long MIN_MILL = LocalDateTime.of(2016, 12, 1, 0, 0, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 

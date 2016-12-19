@@ -54,7 +54,7 @@ public enum Action {
 	LOGIN_VERIFY(1, 3, "loginVerify", "登录验证"),
 
 	/**
-	 * 4.推送
+	 * 4.心跳/推送
 	 */
 	HEART_BEAT(4, 1, "cmtHeartbeat", "登录验证"),
 	UNLOCK(4, 1, "cmtUnlock", "开锁信息"),

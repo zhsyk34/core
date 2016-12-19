@@ -3,18 +3,19 @@ package com.dnake.smart.core.session.tcp;
 import com.dnake.smart.core.dict.Device;
 import com.dnake.smart.core.dict.SessionAttributeKey;
 import com.dnake.smart.core.kit.ConvertKit;
+import com.dnake.smart.core.kit.ThreadKit;
 import com.dnake.smart.core.kit.ValidateKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
+import com.dnake.smart.core.session.udp.UDPSession;
+import com.dnake.smart.core.session.udp.UDPSessionManager;
 import io.netty.channel.Channel;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
-import static com.dnake.smart.core.config.Config.*;
+import static com.dnake.smart.core.config.Config.APP_PREDICT;
+import static com.dnake.smart.core.config.Config.GATEWAY_PREDICT;
 
 /**
  * TCP会话(连接)管理
@@ -43,6 +44,43 @@ public class TCPSessionManager {
 		if (channel != null && channel.isOpen()) {
 			channel.close();
 		}
+	}
+
+	/**
+	 * 尝试唤醒网关
+	 *
+	 * @return 是否已唤醒
+	 */
+	private static boolean awake(String sn) {
+		TCPGatewaySession gatewaySession = GATEWAY_MAP.get(sn);
+		if (gatewaySession != null) {
+			return true;
+		}
+		UDPSession udpSession = UDPSessionManager.search(sn);
+		if (udpSession == null) {
+			Log.logger(Category.EVENT, "网关[" + sn + "]掉线(无udp心跳),无法唤醒");
+			return false;
+		}
+
+		String ip = udpSession.getIp();
+		int chance = 0;//尝试次数
+
+		while (chance < 3 && !GATEWAY_MAP.containsKey(sn)) {
+			chance++;
+			//网关心跳端口
+			UDPSessionManager.awake(ip, udpSession.getPort());
+			ThreadKit.await(100);
+			if (GATEWAY_MAP.containsKey(sn)) {
+				return true;
+			}
+			//服务器分配端口
+			int port = PortManager.port(ip, sn);
+			if (port > -1) {
+				UDPSessionManager.awake(ip, udpSession.getPort());
+			}
+			ThreadKit.await(100);
+		}
+		return GATEWAY_MAP.containsKey(sn);
 	}
 
 	/**
@@ -113,20 +151,24 @@ public class TCPSessionManager {
 	}
 
 	/**
-	 * TODO:重连
 	 * 转发客户端请求至网关
 	 *
 	 * @param sn  网关sn
 	 * @param msg 客户端的请求指令
 	 */
-	public static void forward(String sn, String msg) {
+	public static boolean forward(String sn, String msg) {
 		TCPGatewaySession gatewaySession = GATEWAY_MAP.get(sn);
 		if (gatewaySession == null) {
-			Log.logger(Category.EVENT, "网关[" + sn + "]已掉线");
-			return;
+			awake(sn);
 		}
-		System.err.println("发送[" + msg + "] ==> 网关: " + sn);
+		gatewaySession = GATEWAY_MAP.get(sn);
+		if (gatewaySession == null) {
+			Log.logger(Category.EVENT, "唤醒网关[" + sn + "]失败");
+			return false;
+		}
 		gatewaySession.channel.writeAndFlush(msg);
+		Log.logger(Category.EVENT, "转发[" + msg + "] ==> 网关: " + sn);
+		return true;
 	}
 
 	/**
@@ -139,8 +181,8 @@ public class TCPSessionManager {
 			Log.logger(Category.EVENT, "客户端已下线");
 			return false;
 		}
-		Log.logger(Category.EVENT, ">>>>>>>>>>>>>>>>>>>>>>响应客户端");
 		appSession.channel.writeAndFlush(msg);
+		Log.logger(Category.EVENT, ">>>>>>>>>>>>>>>>>>>>>>响应客户端");
 		return true;
 	}
 
@@ -261,7 +303,7 @@ public class TCPSessionManager {
 					return false;
 				}
 				//TODO:== or isOpen()
-				if (gatewaySession.channel.isOpen()) {
+				if (gatewaySession.channel == channel) {
 					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 该网关已重新上线");
 				} else {
 					GATEWAY_MAP.remove(sn);
@@ -279,14 +321,10 @@ public class TCPSessionManager {
 	 * 2.在线超时的连接
 	 */
 	public static void monitor() {
-		ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-
 		//TODO:分别扫描
-		Runnable task = () -> {
-			System.err.println("共有[" + GATEWAY_MAP.size() + "]个网关在线");
-			GATEWAY_MAP.forEach((sn, ch) -> System.out.print(sn + "  "));
-			System.err.println("共有[" + APP_MAP.size() + "]个APP在线");
-		};
+		Log.logger(Category.EVENT, "共有[" + GATEWAY_MAP.size() + "]个网关在线");
+//		GATEWAY_MAP.forEach((sn, ch) -> System.out.print(sn + "  "));
+		Log.logger(Category.EVENT, "共有[" + APP_MAP.size() + "]个APP在线");
 //		Runnable task = () -> {
 //			Log.logger(Category.EVENT, "TCP扫描任务开始执行...");
 //			//登录超时
@@ -330,7 +368,6 @@ public class TCPSessionManager {
 //			});
 //		};
 
-		service.scheduleAtFixedRate(task, 1, TCP_TIME_OUT_SCAN, TimeUnit.SECONDS);
 	}
 
 }

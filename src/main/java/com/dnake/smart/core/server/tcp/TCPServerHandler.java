@@ -1,8 +1,10 @@
 package com.dnake.smart.core.server.tcp;
 
+import com.alibaba.fastjson.JSONObject;
 import com.dnake.smart.core.dict.Action;
 import com.dnake.smart.core.dict.Device;
 import com.dnake.smart.core.dict.Key;
+import com.dnake.smart.core.dict.Result;
 import com.dnake.smart.core.kit.JsonKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
@@ -31,9 +33,11 @@ class TCPServerHandler extends ChannelInboundHandlerAdapter {
 		}
 		String command = (String) msg;
 
-		Action action = Action.get(JsonKit.getString(command, Key.ACTION.getName()));
+		JSONObject json = JsonKit.map(command);
+		Action action = Action.get(json.getString(Key.ACTION.getName()));
+		String result = json.getString(Key.RESULT.getName());
 
-		if (action == null) {
+		if (action == null && result == null) {
 			Log.logger(Category.EXCEPTION, "无效的指令:\n" + command);
 			return;
 		}
@@ -49,14 +53,28 @@ class TCPServerHandler extends ChannelInboundHandlerAdapter {
 				break;
 			case GATEWAY:
 				System.err.println("网关接收到数据:" + command);
-				if (action.getType() == 4) {
+
+				//心跳
+				if (action == Action.HEART_BEAT) {
+					Log.logger(Category.EVENT, "网关[" + channel.remoteAddress() + "] 发送心跳");
+					JSONObject heartResp = new JSONObject();
+					heartResp.put(Key.RESULT.getName(), Result.OK.getName());
+					channel.writeAndFlush(heartResp);
+					return;
+				}
+
+				//推送
+				if (action != null && action.getType() == 4) {
 					Log.logger(Category.EVENT, "推送数据,直接保存到数据库");
 					MessageManager.save(sn, command);
 					return;
 				}
 
-				Log.logger(Category.EVENT, "处理指令应答,转发至APP");
-				MessageManager.response(sn, command);
+				//响应请求
+				if (result != null) {
+					Log.logger(Category.EVENT, "处理指令应答,转发至APP");
+					MessageManager.response(sn, command);
+				}
 				break;
 			default:
 				break;

@@ -17,6 +17,7 @@ import static com.dnake.smart.core.kit.CodecKit.validateVerify;
 
 /**
  * TODO:数据校验长度如果过大将导致等待...
+ * TODO:每次触发事件时校验头尾,头部不正确直接移除,尾部不正确继续等待(缓冲超过最大长度也移除)
  * 解码TCP服务器接收到的数据
  */
 class TCPDecoder extends ByteToMessageDecoder {
@@ -25,7 +26,7 @@ class TCPDecoder extends ByteToMessageDecoder {
 	protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
 		//logger
 		Log.logger(Category.RECEIVE, "--------------------------------------");
-		Log.logger(Category.RECEIVE, "search data from index[" + in.readerIndex() + "] - [" + (in.readerIndex() + in.readableBytes()) + "]");
+		Log.logger(Category.RECEIVE, "search data init index[" + in.readerIndex() + "] - [" + (in.readerIndex() + in.readableBytes()) + "]");
 		Log.logger(Category.RECEIVE, "read data \n" + ByteBufUtil.hexDump(in));
 
 		//invalid

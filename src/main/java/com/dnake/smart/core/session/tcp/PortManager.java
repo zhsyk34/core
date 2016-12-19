@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-final class PortManager {
+public class PortManager {
 
 	//UDP端口分配(ip,(sn,obj))
 	private static final Map<String, Map<String, UDPPortRecord>> PORT_MAP = new ConcurrentHashMap<>();
@@ -23,9 +23,21 @@ final class PortManager {
 	}
 
 	/**
+	 * @return 网关最近被分配的端口
+	 */
+	public static int port(String ip, String sn) {
+		Map<String, UDPPortRecord> map = PORT_MAP.get(ip);
+		if (map == null) {
+			return -1;
+		}
+		UDPPortRecord record = map.get(sn);
+		return record == null ? -1 : record.getPort();
+	}
+
+	/**
 	 * 定时清理垃圾数据(ip地址改变导致的端口占用)
 	 */
-	static void reduce() {
+	public static void reduce() {
 		//重新分组:转为(sn,(ip,record))
 		final Map<String, Map<String, UDPPortRecord>> snMap = new HashMap<>();
 
@@ -83,7 +95,7 @@ final class PortManager {
 			if (!PORT_MAP.containsKey(ip)) {
 				Log.logger(Category.EVENT, "该IP下无相应网关");
 				map = new ConcurrentHashMap<>();
-				map.put(sn, new UDPPortRecord(apply, System.currentTimeMillis()));
+				map.put(sn, UDPPortRecord.of(apply, System.currentTimeMillis()));
 
 				PORT_MAP.put(ip, map);
 				Log.logger(Category.EVENT, "启用端口");
@@ -99,7 +111,7 @@ final class PortManager {
 			//3.init
 			UDPPortRecord record = map.get(sn);
 			if (record == null) {
-				record = new UDPPortRecord(-1, System.currentTimeMillis());
+				record = UDPPortRecord.of(-1, System.currentTimeMillis());
 				map.put(sn, record);
 			}
 

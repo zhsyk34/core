@@ -1,7 +1,5 @@
 package com.dnake.smart.core.reply;
 
-import com.dnake.smart.core.log.Category;
-import com.dnake.smart.core.log.Log;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,24 +11,58 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 @Getter
 @Setter
-class MessageQueue {
-	private final BlockingQueue<Message> list = new LinkedBlockingQueue<>();
-	private volatile boolean send = false;
+final class MessageQueue {
+	private final BlockingQueue<Message> queue;
+	private volatile boolean send;
 	private volatile long time;
 
-	boolean append(Message message) {
-		if (message == null) {
-			return false;
-		}
-		Log.logger(Category.EVENT, "将请求:\n" + message + "\n添加到待处理队列中");
+	private MessageQueue() {
+		queue = new LinkedBlockingQueue<>();
+		this.reset();
+	}
 
+	static MessageQueue instance() {
+		return new MessageQueue();
+	}
+
+	private MessageQueue reset() {
+		this.send = false;
+		this.time = -1;
+		return this;
+	}
+
+	private MessageQueue guard() {
+		this.send = true;
+		this.time = System.currentTimeMillis();
+		return this;
+	}
+
+	boolean offer(Message message) {
+		return message != null && queue.offer(message);
+	}
+
+	/**
+	 * 查看队列首元素是否正被处理,如是则不进行任何操作,否则取出并进入警戒状态
+	 */
+	Message peek() {
+		if (send) {
+			return null;
+		}
+		Message message = queue.peek();
+		if (message != null) {
+			guard();
+		}
+		return message;
+	}
+
+	Message take() {
 		try {
-			list.put(message);
+			Message message = queue.take();
+			reset();
+			return message;
 		} catch (InterruptedException e) {
-			Log.logger(Category.EVENT, "添加消息到队列出现异常:" + e.getMessage());
-			return false;
+			e.printStackTrace();
 		}
-
-		return true;
+		return null;
 	}
 }
