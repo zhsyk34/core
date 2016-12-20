@@ -14,12 +14,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import java.net.SocketAddress;
-
 /**
  * 处理登录
  */
-class TCPLoginHandler extends ChannelInboundHandlerAdapter {
+final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 
 	//测试统计用
 	//private static final AtomicInteger count = new AtomicInteger();
@@ -36,7 +34,6 @@ class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 		Log.logger(Category.RECEIVE, "command:\n" + command);
 
 		Channel channel = ctx.channel();
-		SocketAddress address = channel.remoteAddress();
 
 		JSONObject json = JsonKit.map(command);
 		Action action = Action.get(json.getString(Key.ACTION.getName()));

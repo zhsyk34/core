@@ -20,7 +20,7 @@ import java.net.InetSocketAddress;
 /**
  * UDP服务器处理器,接收网关心跳
  */
-class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket> {
+final class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket> {
 
 	private UDPSession validate(DatagramPacket msg) {
 		InetSocketAddress address = msg.sender();

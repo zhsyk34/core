@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * UDP心跳管理
  */
-public class UDPSessionManager {
+public final class UDPSessionManager {
 
 	/**
 	 * 网关UDP心跳记录,key=sn

@@ -76,7 +76,7 @@ public class CodecKit {
 	 * @return 编码为small int(2byte)
 	 */
 	private static byte[] encodeLength(byte[] data) {
-		return smallIntToByteArray(data.length + LENGTH_BYTES + VERIFY_BYTES);
+		return smallIntToByteArray(data.length + LENGTH + VERIFY);
 	}
 
 	/**
@@ -119,7 +119,7 @@ public class CodecKit {
 		ByteBuf buffer = Unpooled.buffer(data.length + REDUNDANT);
 
 		//header:2
-		buffer.writeBytes(HEADER);
+		buffer.writeBytes(new byte[]{HEADERS.get(0), HEADERS.get(1)});
 		//length:2
 		buffer.writeBytes(encodeLength(data));
 		//data
@@ -127,7 +127,7 @@ public class CodecKit {
 		//verifyKey:2
 		buffer.writeBytes(encodeVerify(data));
 		//footer:2
-		buffer.writeBytes(FOOTER);
+		buffer.writeBytes(new byte[]{FOOTERS.get(0), FOOTERS.get(1)});
 
 		return buffer.array();
 	}

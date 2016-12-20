@@ -12,7 +12,7 @@ import java.net.InetSocketAddress;
 @Getter
 @Setter
 @Accessors(chain = true)
-public class UDPSession {
+public final class UDPSession {
 	private String ip;
 	private int port;
 	private String sn;

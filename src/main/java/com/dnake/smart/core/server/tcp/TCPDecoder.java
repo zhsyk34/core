@@ -1,11 +1,11 @@
 package com.dnake.smart.core.server.tcp;
 
+import com.dnake.smart.core.config.Config;
 import com.dnake.smart.core.kit.ByteKit;
 import com.dnake.smart.core.kit.DESKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.util.CharsetUtil;
@@ -16,89 +16,89 @@ import static com.dnake.smart.core.dict.Packet.*;
 import static com.dnake.smart.core.kit.CodecKit.validateVerify;
 
 /**
- * TODO:数据校验长度如果过大将导致等待...
- * TODO:每次触发事件时校验头尾,头部不正确直接移除,尾部不正确继续等待(缓冲超过最大长度也移除)
  * 解码TCP服务器接收到的数据
+ * 业务处理场景基于一问一答方式每次解码默认只有一个包
  */
-class TCPDecoder extends ByteToMessageDecoder {
+final class TCPDecoder extends ByteToMessageDecoder {
 
 	@Override
 	protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
-		//logger
-		Log.logger(Category.RECEIVE, "--------------------------------------");
-		Log.logger(Category.RECEIVE, "search data init index[" + in.readerIndex() + "] - [" + (in.readerIndex() + in.readableBytes()) + "]");
-		Log.logger(Category.RECEIVE, "read data \n" + ByteBufUtil.hexDump(in));
+		Log.logger(Category.RECEIVE, "-----------------开始解析-----------------");
 
-		//invalid
-		if (in.readableBytes() < MSG_MIN_LENGTH) {
+		final int size = in.readableBytes();
+
+		//length
+		if (size < MSG_MIN_LENGTH) {
 			Log.logger(Category.RECEIVE, "等待数据中...数据至少应有[" + MSG_MIN_LENGTH + "]位");
 			return;
 		}
-
-		//header:1
-		//TODO:起始位置并非readIndex
-		int index = in.indexOf(in.readerIndex(), in.readerIndex() + in.readableBytes() - 1, HEADER[0]);
-		if (index == -1) {
+		if (size > Config.TCP_MAX_BUFFER_SIZE) {
 			in.clear();
-			Log.logger(Category.RECEIVE, "没有匹配到合法数据,清除已接收到的数据");
-			return;
-		}
-		Log.logger(Category.RECEIVE, "匹配到第一个帧头位置[" + index + "]");
-
-		//length-fuzzy
-		if (in.readableBytes() < MSG_MIN_LENGTH) {
-			Log.logger(Category.RECEIVE, "数据不完整(依据数据长度粗略估计),继续等待中...");
+			Log.logger(Category.RECEIVE, "缓冲数据已达[" + size + "]位,超过最大限制[" + Config.TCP_MAX_BUFFER_SIZE + "],丢弃本次数据");
 			return;
 		}
 
-		//header:2
-		in.readerIndex(index + 1);
-		if (in.readByte() != HEADER[1]) {
-			Log.logger(Category.RECEIVE, "第二个帧头数据不匹配,丢弃此前数据.");
-			in.readerIndex(index + 1);
-			return;
-		}
-		Log.logger(Category.RECEIVE, "匹配到第二个帧头位置[" + (index + 1) + "]");
+		in.markReaderIndex();
 
-		//length-exact
-		int length = ByteKit.byteArrayToInt(new byte[]{in.readByte(), in.readByte()});
-		//actual-length
-		int actual = length - LENGTH_BYTES - VERIFY_BYTES;
-		Log.logger(Category.RECEIVE, "校验长度:[" + length + "], 解析数据显示长度应为:[" + actual + "]");
-		if (length < LENGTH_BYTES + DATA_MIN_BYTES + VERIFY_BYTES) {
-			Log.logger(Category.RECEIVE, "长度校验数据校验错误,继续从下个位置:[" + (index + 1) + "]开始查找");
-			in.readerIndex(index + 1);
-			return;
-		}
-
-		if (in.readableBytes() < length) {
-			Log.logger(Category.RECEIVE, "数据不完整(校验长度),继续等待中...");
-			in.readerIndex(index);
-			return;
-		}
-
-		//data
-		byte[] data = new byte[actual];
-		ByteBuf dataBuf = in.readBytes(actual);
-		dataBuf.getBytes(0, data).release();
-
-		//verifyKey
-		if (!validateVerify(data, new byte[]{in.readByte(), in.readByte()})) {
-			Log.logger(Category.RECEIVE, "校验值错误,继续从下个位置:[" + (index + 1) + "]开始查找");
-			in.readerIndex(index + 1);
+		//header
+		if (in.readByte() != HEADERS.get(0) || in.readByte() != HEADERS.get(1)) {
+			in.clear();
+			Log.logger(Category.RECEIVE, "包头非法,丢弃本次数据");
 			return;
 		}
 
 		//footer
-		if (in.readByte() == FOOTER[0] && in.readByte() == FOOTER[1]) {
-			String command = new String(DESKit.decrypt(data), CharsetUtil.UTF_8);
-			Log.logger(Category.RECEIVE, "帧尾校验通过,获取数据:\n" + command);
-			out.add(command);
+		if (in.getByte(size - 2) != FOOTERS.get(0) || in.getByte(size - 1) != FOOTERS.get(1)) {
+			in.resetReaderIndex();
+			Log.logger(Category.RECEIVE, "包尾不正确,尝试继续等待");
 			return;
 		}
 
-		Log.logger(Category.RECEIVE, "帧尾数据错误,继续从下个位置:[" + (index + 1) + "]开始查找");
-		in.readerIndex(index + 1);
+		//length
+		int length = ByteKit.byteArrayToInt(new byte[]{in.readByte(), in.readByte()});
+		int actual = length - LENGTH - VERIFY;
+		Log.logger(Category.RECEIVE, "校验长度:[" + length + "], 指令长度应为:[" + actual + "]");
+		if (actual < MIN_DATA || actual > size - REDUNDANT) {
+			in.clear();
+			Log.logger(Category.RECEIVE, "长度校验数据校验错误,丢弃本次数据");
+			return;
+		}
+
+		//skip data and verify to check footer again
+		in.markReaderIndex();
+		in.skipBytes(actual + VERIFY);
+
+		if (in.readByte() != FOOTERS.get(0) || in.readByte() != FOOTERS.get(1)) {
+			in.clear();
+			Log.logger(Category.RECEIVE, "包尾错误,丢弃本次数据");
+			return;
+		}
+
+		//read data
+		in.resetReaderIndex();
+
+		byte[] data = new byte[actual];
+		ByteBuf dataBuf = in.readBytes(actual);
+		dataBuf.getBytes(0, data).release();
+
+		//verify
+		if (!validateVerify(data, new byte[]{in.readByte(), in.readByte()})) {
+			in.clear();
+			Log.logger(Category.RECEIVE, "校验值错误,丢弃本次数据");
+			return;
+		}
+
+		//skip footer
+		in.skipBytes(FOOTERS.size());
+
+		String command = new String(DESKit.decrypt(data), CharsetUtil.UTF_8);
+		out.add(command);
+
+		//recursion
+		if (in.readableBytes() > 0) {
+			Log.logger(Category.RECEIVE, "解析剩余部分");
+			decode(ctx, in, out);
+		}
 	}
 
 }

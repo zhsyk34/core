@@ -1,5 +1,6 @@
 package com.dnake.smart.core.session.tcp;
 
+import com.dnake.smart.core.config.Config;
 import com.dnake.smart.core.dict.Device;
 import com.dnake.smart.core.dict.SessionAttributeKey;
 import com.dnake.smart.core.kit.ConvertKit;
@@ -14,28 +15,28 @@ import io.netty.channel.Channel;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static com.dnake.smart.core.config.Config.APP_PREDICT;
-import static com.dnake.smart.core.config.Config.GATEWAY_PREDICT;
+import static com.dnake.smart.core.config.Config.TCP_APP_COUNT_PREDICT;
+import static com.dnake.smart.core.config.Config.TCP_GATEWAY_COUNT_PREDICT;
 
 /**
  * TCP会话(连接)管理
  */
-public class TCPSessionManager {
+public final class TCPSessionManager {
 	/**
 	 * 请求连接(登录后移除)
-	 * 一连接即记录,开始线程扫描以关闭超时未登录的连接,故此在登录验证中可不考虑时间
+	 * 一连接即记录,开启线程扫描以关闭超时未登录的连接,故此在登录验证中可不验证登录时间
 	 */
 	private static final Map<String, TCPBaseSession> ACCEPT_MAP = new ConcurrentHashMap<>();
 
 	/**
 	 * 登录的app连接,key为channel默认id
 	 */
-	private static final Map<String, TCPAppSession> APP_MAP = new ConcurrentHashMap<>(APP_PREDICT);
+	private static final Map<String, TCPAppSession> APP_MAP = new ConcurrentHashMap<>(TCP_APP_COUNT_PREDICT);
 
 	/**
 	 * 登录的网关连接,key为网关sn号
 	 */
-	private static final Map<String, TCPGatewaySession> GATEWAY_MAP = new ConcurrentHashMap<>(GATEWAY_PREDICT);
+	private static final Map<String, TCPGatewaySession> GATEWAY_MAP = new ConcurrentHashMap<>(TCP_GATEWAY_COUNT_PREDICT);
 
 	/**
 	 * 释放资源
@@ -69,16 +70,16 @@ public class TCPSessionManager {
 			chance++;
 			//网关心跳端口
 			UDPSessionManager.awake(ip, udpSession.getPort());
-			ThreadKit.await(100);
+			ThreadKit.await(Config.GATEWAY_AWAKE_CHECK_TIME);
 			if (GATEWAY_MAP.containsKey(sn)) {
 				return true;
 			}
 			//服务器分配端口
 			int port = PortManager.port(ip, sn);
-			if (port > -1) {
+			if (port >= Config.UDP_CLIENT_MIN_PORT) {
 				UDPSessionManager.awake(ip, udpSession.getPort());
 			}
-			ThreadKit.await(100);
+			ThreadKit.await(Config.GATEWAY_AWAKE_CHECK_TIME);
 		}
 		return GATEWAY_MAP.containsKey(sn);
 	}
@@ -87,7 +88,7 @@ public class TCPSessionManager {
 	 * 分配默认id:accept||app
 	 */
 	public static String id(Channel channel) {
-		return channel.id().asLongText();
+		return channel.id().asShortText();
 	}
 
 	/**
@@ -167,7 +168,7 @@ public class TCPSessionManager {
 			return false;
 		}
 		gatewaySession.channel.writeAndFlush(msg);
-		Log.logger(Category.EVENT, "转发[" + msg + "] ==> 网关: " + sn);
+		Log.logger(Category.EVENT, "转发[" + msg + "] ==> 网关[" + sn + "]");
 		return true;
 	}
 
@@ -178,25 +179,22 @@ public class TCPSessionManager {
 	public static boolean respond(String id, String msg) {
 		TCPAppSession appSession = APP_MAP.get(id);
 		if (appSession == null) {
-			Log.logger(Category.EVENT, "客户端已下线");
+			Log.logger(Category.EVENT, "客户端[" + id + "]已下线");
 			return false;
 		}
 		appSession.channel.writeAndFlush(msg);
-		Log.logger(Category.EVENT, ">>>>>>>>>>>>>>>>>>>>>>响应客户端");
+		Log.logger(Category.EVENT, "响应客户端[" + id + "]的请求");
 		return true;
 	}
 
 	/**
-	 * TODO
 	 * 初始连接时保存数据
+	 * 默认生成的id不会重复
+	 * <p>
+	 * 不需要ACCEPT_MAP.remove(id)
 	 */
 	public static void init(Channel channel) {
 		String id = id(channel);
-		//默认生成的id一般不会重复,基本不需检查原有连接,此处保险起见...
-		TCPBaseSession baseSession = ACCEPT_MAP.remove(id);
-		if (baseSession != null) {
-			remove(baseSession.channel);
-		}
 		ACCEPT_MAP.put(id, TCPBaseSession.init(channel));
 	}
 
@@ -229,7 +227,7 @@ public class TCPSessionManager {
 			case GATEWAY:
 				String sn = sn(channel);
 				String ip = baseInfo.ip;
-				Integer apply = port(channel);
+				int apply = port(channel);
 
 				if (ValidateKit.isEmpty(sn) || ValidateKit.invalid(apply)) {
 					Log.logger(Category.EVENT, "验证失败(错误的登录信息)");
@@ -239,7 +237,7 @@ public class TCPSessionManager {
 				//关闭已存在的连接,防止重复登录
 				TCPGatewaySession gatewayInfo = GATEWAY_MAP.remove(sn);
 				if (gatewayInfo != null) {
-					Log.logger(Category.EVENT, ">>>>>>>>>>>>>关闭已有的连接[" + sn + "],上次登录时间:" + ConvertKit.from(gatewayInfo.createTime));
+					Log.logger(Category.EVENT, "关闭[" + sn + "]已有的连接,上次登录时间:" + ConvertKit.from(gatewayInfo.createTime));
 					remove(gatewayInfo.channel);
 				}
 
@@ -247,10 +245,10 @@ public class TCPSessionManager {
 				TCPGatewaySession session = TCPGatewaySession.init(baseInfo).setSn(sn);
 				int allocation = PortManager.allocate(sn, ip, apply);
 				GATEWAY_MAP.put(sn, session);
-				Log.logger(Category.EVENT, "网关登录成功.");
+				Log.logger(Category.EVENT, "网关[" + sn + "]登录成功");
 				return allocation;
 			default:
-				Log.logger(Category.EVENT, "未知设备.");
+				Log.logger(Category.EVENT, "未知设备");
 				return -1;
 		}
 	}
@@ -260,14 +258,12 @@ public class TCPSessionManager {
 	 * WARN:通过SN查找网关可能查询到"后来的"的连接
 	 */
 	public static boolean close(Channel channel) {
-		//TODO:重复关闭
 		if (channel == null || !channel.isOpen()) {
 			return true;
 		}
 		Log.logger(Category.EVENT, "关闭[" + channel.remoteAddress() + "]连接");
 		//先直接关闭channel
 		remove(channel);
-		//默认id
 		String id = id(channel);
 
 		//在未登录队列中查找
@@ -279,15 +275,16 @@ public class TCPSessionManager {
 		Device device = type(channel);
 		//尚未登录,应在此前已删除
 		if (device == null) {
-			Log.logger(Category.EXCEPTION, channel.remoteAddress() + "关闭出错,在ACCEPT中查找不到该连接(该连接尚未登录)");
+			Log.logger(Category.EXCEPTION, channel.remoteAddress() + "该连接超时未登录已被关闭");
 			return false;
 		}
+
 		//已进入登录环节
 		switch (device) {
 			case APP:
 				TCPAppSession appSession = APP_MAP.remove(id);
 				if (appSession == null) {
-					Log.logger(Category.EXCEPTION, channel.remoteAddress() + "客户端关闭出错,在APP中查找不到该连接");
+					Log.logger(Category.EXCEPTION, channel.remoteAddress() + "客户端关闭出错,在app队列中查找不到该连接(可能在线时长已到被移除)");
 				}
 				return appSession != null;
 			case GATEWAY:
@@ -299,10 +296,9 @@ public class TCPSessionManager {
 				//网关队列key为sn,可能被后来的连接所覆盖
 				TCPGatewaySession gatewaySession = GATEWAY_MAP.get(sn);
 				if (gatewaySession == null) {
-					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 网关关闭出错,在GATEWAY中查找不到该连接");
+					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 网关关闭出错,在网关队列中查找不到该连接(可能在线时长已到被移除)");
 					return false;
 				}
-				//TODO:== or isOpen()
 				if (gatewaySession.channel == channel) {
 					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 该网关已重新上线");
 				} else {

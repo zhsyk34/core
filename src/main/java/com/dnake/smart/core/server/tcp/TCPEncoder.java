@@ -10,8 +10,9 @@ import io.netty.handler.codec.MessageToByteEncoder;
 
 /**
  * TCP服务器发送数据前进行编码(加密等)
+ * 支持直接发送 String 或 JSONObject
  */
-class TCPEncoder extends MessageToByteEncoder<Object> {
+final class TCPEncoder extends MessageToByteEncoder<Object> {
 
 	@Override
 	protected void encode(ChannelHandlerContext ctx, Object msg, ByteBuf out) throws Exception {

@@ -13,11 +13,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dnake.smart.core.config.Config.MESSAGE_SEND_AWAIT;
 
-public class MessageManager {
+/**
+ * TODO:同步
+ */
+public final class MessageManager {
 	/**
 	 * app请求消息处理队列
 	 */
-	private static final Map<String, MessageQueue> APP_MESSAGE = new ConcurrentHashMap<>();
+	private static final Map<String, MessageQueue> APP_REQUEST = new ConcurrentHashMap<>();
 
 	/**
 	 * 网关推送消息处理队列
@@ -33,37 +36,36 @@ public class MessageManager {
 	 */
 	public static boolean request(String sn, Message message) {
 		final MessageQueue queue;
-		synchronized (APP_MESSAGE) {
-			if (APP_MESSAGE.containsKey(sn)) {
-				queue = APP_MESSAGE.get(sn);
+		synchronized (APP_REQUEST) {
+			if (APP_REQUEST.containsKey(sn)) {
+				queue = APP_REQUEST.get(sn);
 			} else {
 				queue = MessageQueue.instance();
-				APP_MESSAGE.put(sn, queue);
+				APP_REQUEST.put(sn, queue);
 			}
 		}
 		return queue.offer(message);
 	}
 
 	/**
-	 * 网关响应app请求后,从起将相应的队列中移除
+	 * 网关响应app请求后,将其请求从相应的队列中移除
 	 *
 	 * @param sn       受理的网关
 	 * @param response 网关的回复
 	 */
 	public static void response(String sn, String response) {
-		MessageQueue queue = APP_MESSAGE.get(sn);
-		if (ValidateKit.isEmpty(queue.getQueue())) {
-			Log.logger(Category.EVENT, "消息队列已被清空(网关异常导致响应超时)");
-			return;
-		}
+		MessageQueue queue = APP_REQUEST.get(sn);
 
-		Message message = queue.take();
-		if (message != null) {
+		Message message = queue.poll();
+		if (message == null) {
+			Log.logger(Category.EVENT, "消息队列已被清空(网关异常导致响应超时)");
+		} else {
 			TCPSessionManager.respond(message.getSrc(), response);
 		}
 	}
 
 	/**
+	 * TODO
 	 * 保存网关推送的数据
 	 */
 	public static void save(String sn, String command) {
@@ -76,7 +78,7 @@ public class MessageManager {
 	public static void process() {
 		AtomicInteger count = new AtomicInteger();
 
-		APP_MESSAGE.forEach((sn, queue) -> {
+		APP_REQUEST.forEach((sn, queue) -> {
 			int size = queue.getQueue().size();
 			count.addAndGet(size);
 			Message message = queue.peek();
@@ -103,11 +105,11 @@ public class MessageManager {
 	 * 移除响应时间超时(自发送起**秒内未及时回复)的消息
 	 */
 	public static void monitor() {
-		APP_MESSAGE.forEach((sn, queue) -> {
+		APP_REQUEST.forEach((sn, queue) -> {
 			if (queue.isSend()) {
 				if (!ValidateKit.time(queue.getTime(), MESSAGE_SEND_AWAIT)) {
 					Log.logger(Category.EXCEPTION, "消息响应超时,关闭连接");
-					queue.take();
+					queue.poll();
 				}
 			}
 		});

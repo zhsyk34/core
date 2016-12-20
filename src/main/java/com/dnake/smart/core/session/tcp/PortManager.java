@@ -10,22 +10,24 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public class PortManager {
+public final class PortManager {
 
-	//UDP端口分配(ip,(sn,obj))
+	/**
+	 * UDP端口分配(ip,(sn,obj))
+	 */
 	private static final Map<String, Map<String, UDPPortRecord>> PORT_MAP = new ConcurrentHashMap<>();
 
 	/**
 	 * TODO
 	 * 从数据库加载初始信息
 	 */
-	public static void init() {
+	public static void load() {
 	}
 
 	/**
 	 * @return 网关最近被分配的端口
 	 */
-	public static int port(String ip, String sn) {
+	static int port(String ip, String sn) {
 		Map<String, UDPPortRecord> map = PORT_MAP.get(ip);
 		if (map == null) {
 			return -1;
@@ -87,18 +89,18 @@ public class PortManager {
 	 */
 	static int allocate(String sn, String ip, int apply) {
 		synchronized (PORT_MAP) {
-			Log.logger(Category.EVENT, "网关请求登录登录信息为[" + ip + " : " + apply + "]");
+			Log.logger(Category.EVENT, "网关[" + sn + "]请求登录登录信息 ==> [" + ip + " : " + apply + "]");
 
 			Map<String, UDPPortRecord> map;
 
 			//1.
 			if (!PORT_MAP.containsKey(ip)) {
-				Log.logger(Category.EVENT, "该IP下无相应网关");
+				Log.logger(Category.EVENT, "该ip下无相应网关");
 				map = new ConcurrentHashMap<>();
-				map.put(sn, UDPPortRecord.of(apply, System.currentTimeMillis()));
+				map.put(sn, UDPPortRecord.instance(apply));
 
 				PORT_MAP.put(ip, map);
-				Log.logger(Category.EVENT, "启用端口");
+				Log.logger(Category.EVENT, "直接启用端口");
 				return apply;
 			}
 
@@ -106,20 +108,19 @@ public class PortManager {
 			map = PORT_MAP.get(ip);
 			Set<Integer> set = new HashSet<>();
 			map.forEach((k, v) -> set.add(v.getPort()));
-			Log.logger(Category.EVENT, "该IP下已被使用的端口:\n" + Arrays.toString(set.toArray(new Integer[set.size()])));
+			//Log.logger(Category.EVENT, "该IP下已被使用的端口:\n" + Arrays.toString(set.toArray(new Integer[set.size()])));
 
-			//3.init
+			//3.load
 			UDPPortRecord record = map.get(sn);
 			if (record == null) {
-				record = UDPPortRecord.of(-1, System.currentTimeMillis());
+				record = UDPPortRecord.instance(-1);
 				map.put(sn, record);
 			}
 
 			//4.该IP下的端口未被使用
 			if (!set.contains(apply)) {
-				Log.logger(Category.EVENT, "该端口未被使用");
 				record.setPort(apply);
-				Log.logger(Category.EVENT, "启用端口");
+				Log.logger(Category.EVENT, "该端口未被使用,直接启用");
 				return apply;
 			}
 
@@ -132,7 +133,7 @@ public class PortManager {
 			//6.分配新端口
 			int allocate = AllocateKit.allocate(Config.UDP_CLIENT_MIN_PORT, set);
 			record.setPort(allocate);
-			Log.logger(Category.EVENT, "网关" + sn + "申请的端口[" + apply + "]已被使用,为其分配新端口[" + allocate + "]");
+			Log.logger(Category.EVENT, "网关[" + sn + "]申请的端口[" + apply + "]已被使用,为其分配新端口[" + allocate + "]");
 			return allocate;
 		}
 	}

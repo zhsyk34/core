@@ -18,7 +18,7 @@ public class PortManagerTest {
 				int k = (int) (Math.random() * gwCnt + 1);
 				long happen = (int) (Math.random() * 100);
 				int port = 50000 + 7 * (j + 1);
-				snMap.put("sn" + k, UDPPortRecord.of(port, happen));
+				snMap.put("sn" + k, UDPPortRecord.instance(port, happen));
 			}
 		}
 	}

@@ -2,9 +2,9 @@ package com.dnake.smart.core.config;
 
 /**
  * 参数配置
- * 时间的单位均为秒
+ * 如无特殊说明,时间的单位均为秒
  */
-public class Config {
+public final class Config {
 	/**
 	 * -----------------------------TCP配置-----------------------------
 	 */
@@ -13,10 +13,11 @@ public class Config {
 	//TCP服务器默认端口
 	public static final int TCP_SERVER_PORT = 15999;
 	//TCP最大并发连接数
-	public static final int SERVER_BACKLOG = 1024;
+	public static final int TCP_SERVER_BACKLOG = 1024;
 	//TCP预计并发连接数,用于初始化连接队列
-	public static final int APP_PREDICT = 1 << 10;//1K
-	public static final int GATEWAY_PREDICT = 1 << 14;//16K
+	public static final int TCP_APP_COUNT_PREDICT = 1 << 12;
+	public static final int TCP_GATEWAY_COUNT_PREDICT = 1 << 14;
+
 	//TCP连接超时时间
 	public static final int CONNECT_TIME_OUT = 5;
 	//TCP登录时间
@@ -29,6 +30,8 @@ public class Config {
 	public static final int MESSAGE_SEND_AWAIT = 18;
 	//TCP管理(扫描)线程执行的间隔时长
 	public static final int TCP_TIME_OUT_SCAN = 10;
+	//允许最大的无效缓冲数据
+	public static final int TCP_MAX_BUFFER_SIZE = 1 << 10;
 
 	/**
 	 * -----------------------------UDP配置-----------------------------
@@ -44,11 +47,15 @@ public class Config {
 	/**
 	 * -----------------------------日志配置-----------------------------
 	 */
-	public static final int START_MONITOR_TIME = 1;
+
 	public static final int LOGGER_CAPACITY = 5000;
 	/**
 	 * -----------------------------时间配置-----------------------------
 	 */
+	//服务器启动状态监视时间间隔
+	public static final int SERVER_START_MONITOR_TIME = 100;//ms
+	//通过UDP唤醒网关时检测状态时间间隔
+	public static final int GATEWAY_AWAKE_CHECK_TIME = 100;//ms
 	//服务器启动时间
 	public static final String START_TIME = "2016-12-01";
 	//网关发送UDP心跳包频率

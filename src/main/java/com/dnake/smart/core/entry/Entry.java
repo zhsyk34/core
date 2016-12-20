@@ -1,21 +1,45 @@
-package com.dnake.smart.core.task;
+package com.dnake.smart.core.entry;
 
+import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.kit.ThreadKit;
+import com.dnake.smart.core.log.Category;
+import com.dnake.smart.core.log.Log;
 import com.dnake.smart.core.reply.MessageManager;
+import com.dnake.smart.core.server.tcp.TCPServer;
+import com.dnake.smart.core.server.udp.UDPServer;
 import com.dnake.smart.core.session.tcp.PortManager;
 import com.dnake.smart.core.session.tcp.TCPSessionManager;
 import com.dnake.smart.core.session.udp.UDPSessionManager;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static com.dnake.smart.core.config.Config.*;
 
-public class TaskHandler {
+public class Entry {
 
-	public static void execute() {
-		//TODO:读取端口信息
-		PortManager.init();
+	public static void main() {
+		//TODO:从数据加载网关端口使用数据
+		PortManager.load();
+
+		//TCP服务器
+		ExecutorService tcpService = Executors.newSingleThreadExecutor();
+		tcpService.submit(TCPServer::start);
+		while (!TCPServer.isStarted()) {
+			Log.logger(Category.EVENT, TCPServer.class.getSimpleName() + " 正在启动...");
+			ThreadKit.await(Config.SERVER_START_MONITOR_TIME * 1000);
+		}
+
+		//UDP服务器
+		ExecutorService udpService = Executors.newSingleThreadExecutor();
+		udpService.submit(UDPServer::start);
+		while (!UDPServer.isStarted()) {
+			Log.logger(Category.EVENT, UDPServer.class.getSimpleName() + " 正在启动...");
+			ThreadKit.await(Config.SERVER_START_MONITOR_TIME * 1000);
+		}
+
 		//TODO
 		ScheduledExecutorService service = Executors.newScheduledThreadPool(8);
 		//端口回收

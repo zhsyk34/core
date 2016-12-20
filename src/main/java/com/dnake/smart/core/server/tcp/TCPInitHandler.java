@@ -9,7 +9,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 /**
  * 监听TCP连接事件
  */
-class TCPInitHandler extends ChannelInboundHandlerAdapter {
+final class TCPInitHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {

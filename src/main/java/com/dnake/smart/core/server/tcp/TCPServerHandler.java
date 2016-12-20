@@ -16,15 +16,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 /**
- * 处理除登录以外的相关指令
- * 1.推送指令:保存相关数据至数据库
- * 2.控制指令交由
+ * 处理除登录以外的请求,登录验证已在此前的
  *
- * @see MessageManager 统一管理
- * 3.登录验证已在
  * @see TCPLoginHandler 中处理
+ * <p>
+ * 1.网关心跳:直接回复
+ * 2.网关推送信息:保存至数据库
+ * 3.app控制指令与网关响应信息交由
+ * @see MessageManager 统一管理
  */
-class TCPServerHandler extends ChannelInboundHandlerAdapter {
+final class TCPServerHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -38,7 +39,7 @@ class TCPServerHandler extends ChannelInboundHandlerAdapter {
 		String result = json.getString(Key.RESULT.getName());
 
 		if (action == null && result == null) {
-			Log.logger(Category.EXCEPTION, "无效的指令:\n" + command);
+			Log.logger(Category.EVENT, "无效的指令:\n" + command);
 			return;
 		}
 
@@ -54,7 +55,7 @@ class TCPServerHandler extends ChannelInboundHandlerAdapter {
 			case GATEWAY:
 				System.err.println("网关接收到数据:" + command);
 
-				//心跳
+				//1.心跳
 				if (action == Action.HEART_BEAT) {
 					Log.logger(Category.EVENT, "网关[" + channel.remoteAddress() + "] 发送心跳");
 					JSONObject heartResp = new JSONObject();
@@ -63,16 +64,16 @@ class TCPServerHandler extends ChannelInboundHandlerAdapter {
 					return;
 				}
 
-				//推送
+				//2.推送
 				if (action != null && action.getType() == 4) {
-					Log.logger(Category.EVENT, "推送数据,直接保存到数据库");
+					Log.logger(Category.EVENT, "网关推送数据,直接保存到数据库");
 					MessageManager.save(sn, command);
 					return;
 				}
 
-				//响应请求
+				//3.响应请求
 				if (result != null) {
-					Log.logger(Category.EVENT, "处理指令应答,转发至APP");
+					Log.logger(Category.EVENT, "网关回复app的请求,转发...");
 					MessageManager.response(sn, command);
 				}
 				break;

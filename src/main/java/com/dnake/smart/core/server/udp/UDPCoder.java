@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * UDP编码解码处理器
  */
-class UDPCoder extends MessageToMessageCodec<DatagramPacket, DatagramPacket> {
+final class UDPCoder extends MessageToMessageCodec<DatagramPacket, DatagramPacket> {
 	@Override
 	protected void encode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
 		String command = msg.content().toString(CharsetUtil.UTF_8);
@@ -24,7 +24,7 @@ class UDPCoder extends MessageToMessageCodec<DatagramPacket, DatagramPacket> {
 	@Override
 	protected void decode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
 		ByteBuf buf = msg.content();
-		ByteBuf command = buf.slice(Packet.HEADER.length + Packet.LENGTH_BYTES, buf.readableBytes() - Packet.REDUNDANT);
+		ByteBuf command = buf.slice(Packet.HEADERS.size() + Packet.LENGTH, buf.readableBytes() - Packet.REDUNDANT);
 		out.add(msg.replace(CodecKit.decode(command)));
 	}
 }

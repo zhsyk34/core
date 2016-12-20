@@ -1,35 +1,49 @@
 package com.dnake.smart.core.session.tcp;
 
+import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.kit.ConvertKit;
 import io.netty.channel.Channel;
+import lombok.Getter;
 
 import java.net.InetSocketAddress;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 /**
- * TODO:合并session?
+ * TODO:重构？
+ * TCP连接信息
  */
-@Deprecated
+@Getter
 public class TCPSession {
-	private static final long MIN_MILL = LocalDateTime.of(2016, 12, 1, 0, 0, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+	private static final long MIN_MILL = ConvertKit.from(ConvertKit.from(Config.START_TIME));
 
 	//连接通道
 	private final Channel channel;
 	//连接的创建时间
-	private final long createTime;
+	private final long create;
 	private final String ip;
 	//TCP端口
 	private final int port;
+	//app请求网关 或 登录网关的sn号
 	private String sn;
 
-	TCPSession(Channel channel, long createTime) {
-		if (channel == null || createTime < MIN_MILL) {
+	private TCPSession(Channel channel, long create) {
+		if (channel == null || create < MIN_MILL) {
 			throw new RuntimeException("params is invalid.");
 		}
 		this.channel = channel;
-		this.createTime = createTime;
+		this.create = create;
+
 		InetSocketAddress address = (InetSocketAddress) channel.remoteAddress();
 		this.ip = address.getHostString();
 		this.port = address.getPort();
 	}
+
+	public static TCPSession init(Channel channel) {
+		return new TCPSession(channel, System.currentTimeMillis());
+	}
+
+	public TCPSession build(String sn) {
+		this.sn = sn;
+		return this;
+	}
+
 }

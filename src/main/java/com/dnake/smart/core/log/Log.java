@@ -99,11 +99,6 @@ public class Log {
 				write(exceptionLogger, LogLevel.ERROR, e.getMessage());
 			}
 		}
-//		ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-//		service.scheduleAtFixedRate(() -> {
-//
-//		}, 30, 60, TimeUnit.SECONDS);
-
 	}
 
 	public static void logger(Category category, String message) {

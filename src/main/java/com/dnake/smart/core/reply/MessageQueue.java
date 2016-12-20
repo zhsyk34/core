@@ -25,18 +25,27 @@ final class MessageQueue {
 		return new MessageQueue();
 	}
 
-	private MessageQueue reset() {
+	/**
+	 * 重置队列状态
+	 */
+	private synchronized MessageQueue reset() {
 		this.send = false;
 		this.time = -1;
 		return this;
 	}
 
-	private MessageQueue guard() {
+	/**
+	 * 当队列数据被处理时开启警戒状态以进行监测
+	 */
+	private synchronized MessageQueue guard() {
 		this.send = true;
 		this.time = System.currentTimeMillis();
 		return this;
 	}
 
+	/**
+	 * 添加数据
+	 */
 	boolean offer(Message message) {
 		return message != null && queue.offer(message);
 	}
@@ -44,7 +53,7 @@ final class MessageQueue {
 	/**
 	 * 查看队列首元素是否正被处理,如是则不进行任何操作,否则取出并进入警戒状态
 	 */
-	Message peek() {
+	synchronized Message peek() {
 		if (send) {
 			return null;
 		}
@@ -55,14 +64,12 @@ final class MessageQueue {
 		return message;
 	}
 
-	Message take() {
-		try {
-			Message message = queue.take();
-			reset();
-			return message;
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		return null;
+	/**
+	 * 移除已处理完的数据
+	 */
+	synchronized Message poll() {
+		Message message = queue.poll();
+		reset();
+		return message;
 	}
 }
