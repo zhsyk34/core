@@ -6,7 +6,7 @@ import lombok.Getter;
 import java.util.HashMap;
 import java.util.Map;
 
-//	public static void main(String[] args) {
+//	public static void start(String[] args) {
 //		String s = "1  ctrlScene  场景控制\n" +
 //				"2  ctrlDev  设备控制\n" +
 //				"3  readDev  读取设备状态\n" +

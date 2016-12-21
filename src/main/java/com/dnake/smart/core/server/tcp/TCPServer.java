@@ -37,11 +37,10 @@ public final class TCPServer {
 		bootstrap.option(ChannelOption.TCP_NODELAY, true);
 		bootstrap.option(ChannelOption.SO_BACKLOG, Config.TCP_SERVER_BACKLOG);
 
+		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Config.CONNECT_TIME_OUT * 1000);
 		//pool
 		bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
 		bootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
-
-		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Config.CONNECT_TIME_OUT * 1000);
 
 		//logging
 		bootstrap.childHandler(new LoggingHandler(LogLevel.DEBUG));
@@ -61,7 +60,8 @@ public final class TCPServer {
 
 		try {
 			ChannelFuture future = bootstrap.bind(Config.LOCAL_HOST, Config.TCP_SERVER_PORT).sync();
-			Log.logger(Category.EVENT, TCPServer.class.getSimpleName() + " 在端口[" + Config.TCP_SERVER_PORT + "]启动成功");
+			Log.logger(Category.EVENT, TCPServer.class.getSimpleName() + " 在端口[" + Config.TCP_SERVER_PORT + "]启动完毕");
+
 			started = true;
 
 			future.channel().closeFuture().sync();

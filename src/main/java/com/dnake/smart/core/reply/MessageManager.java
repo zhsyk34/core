@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.dnake.smart.core.config.Config.MESSAGE_SEND_AWAIT;
+import static com.dnake.smart.core.config.Config.TCP_MESSAGE_SEND_AWAIT;
 
 /**
  * TODO:同步
@@ -79,8 +79,7 @@ public final class MessageManager {
 		AtomicInteger count = new AtomicInteger();
 
 		APP_REQUEST.forEach((sn, queue) -> {
-			int size = queue.getQueue().size();
-			count.addAndGet(size);
+			count.addAndGet(queue.getQueue().size());
 			Message message = queue.peek();
 			if (message != null) {
 				TCPSessionManager.forward(sn, message.getCommand());
@@ -91,6 +90,7 @@ public final class MessageManager {
 	}
 
 	/**
+	 * TODO:推送至web服务器
 	 * 持久化数据
 	 */
 	public static void persistent() {
@@ -107,12 +107,11 @@ public final class MessageManager {
 	public static void monitor() {
 		APP_REQUEST.forEach((sn, queue) -> {
 			if (queue.isSend()) {
-				if (!ValidateKit.time(queue.getTime(), MESSAGE_SEND_AWAIT)) {
+				if (!ValidateKit.time(queue.getTime(), TCP_MESSAGE_SEND_AWAIT)) {
 					Log.logger(Category.EXCEPTION, "消息响应超时,关闭连接");
 					queue.poll();
 				}
 			}
 		});
 	}
-
 }

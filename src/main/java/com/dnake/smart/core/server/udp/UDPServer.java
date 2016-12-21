@@ -12,7 +12,7 @@ import lombok.Getter;
 import static com.dnake.smart.core.config.Config.UDP_SERVER_PORT;
 
 /**
- * UDP服务器,主要用于接收、保存心跳信息以唤醒下线网关登录
+ * UDP服务器,主要用于接收/保存心跳信息以唤醒下线网关登录
  */
 public final class UDPServer {
 	@Getter
@@ -21,7 +21,7 @@ public final class UDPServer {
 	@Getter
 	private static Channel channel;
 
-	public static void start() {
+	public static synchronized void start() {
 		if (started) {
 			return;
 		}
@@ -41,10 +41,10 @@ public final class UDPServer {
 			});
 
 			channel = bootstrap.bind(UDP_SERVER_PORT).syncUninterruptibly().channel();
-			Log.logger(Category.UDP, UDPServer.class.getSimpleName() + " 在端口[" + UDP_SERVER_PORT + "]启动完毕");
 
 			started = true;
 
+			Log.logger(Category.EVENT, UDPServer.class.getSimpleName() + " 在端口[" + UDP_SERVER_PORT + "]启动完毕");
 			channel.closeFuture().await();
 		} catch (Exception e) {
 			e.printStackTrace();

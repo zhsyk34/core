@@ -27,7 +27,7 @@ final class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket>
 
 		String command = msg.content().toString(CharsetUtil.UTF_8);
 
-		Log.logger(Category.UDP, "接收到[" + address + "]数据:" + command);
+		//Log.logger(Category.UDP, "接收到网关[" + address + "]UDP数据:" + command);
 
 		JSONObject map = JsonKit.map(command);
 		String action = map.getString(Key.ACTION.getName());
@@ -46,7 +46,7 @@ final class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket>
 			return null;
 		}
 
-		return UDPSession.init(address).setSn(sn).setVersion(version);
+		return UDPSession.from(address).sn(sn).version(version);
 	}
 
 	@Override
@@ -54,7 +54,7 @@ final class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket>
 		UDPSession session = validate(msg);
 		if (session != null) {
 			UDPSessionManager.append(session);
-			UDPSessionManager.awake(msg.sender());
+			UDPSessionManager.respond(msg.sender());
 		}
 	}
 

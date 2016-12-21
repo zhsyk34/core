@@ -49,15 +49,13 @@ final class TCPServerHandler extends ChannelInboundHandlerAdapter {
 
 		switch (device) {
 			case APP:
-				Log.logger(Category.EVENT, "客户端请求,将其添加到消息处理队列...");
+				Log.logger(Category.EVENT, "客户端请求[" + command + "],将其添加到消息处理队列...");
 				MessageManager.request(sn, Message.of(TCPSessionManager.id(channel), command));
 				break;
 			case GATEWAY:
-				System.err.println("网关接收到数据:" + command);
-
 				//1.心跳
 				if (action == Action.HEART_BEAT) {
-					Log.logger(Category.EVENT, "网关[" + channel.remoteAddress() + "] 发送心跳");
+					Log.logger(Category.RECEIVE, "网关[" + sn + "] 发送心跳");
 					JSONObject heartResp = new JSONObject();
 					heartResp.put(Key.RESULT.getName(), Result.OK.getName());
 					channel.writeAndFlush(heartResp);
@@ -66,14 +64,14 @@ final class TCPServerHandler extends ChannelInboundHandlerAdapter {
 
 				//2.推送
 				if (action != null && action.getType() == 4) {
-					Log.logger(Category.EVENT, "网关推送数据,直接保存到数据库");
+					Log.logger(Category.RECEIVE, "网关[" + sn + "]推送数据...");
 					MessageManager.save(sn, command);
 					return;
 				}
 
 				//3.响应请求
 				if (result != null) {
-					Log.logger(Category.EVENT, "网关回复app的请求,转发...");
+					Log.logger(Category.EVENT, "网关[" + sn + "]回复app请求,转发...");
 					MessageManager.response(sn, command);
 				}
 				break;

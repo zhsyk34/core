@@ -24,7 +24,7 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		//TODO:统计接收到的数据(有效即可,测试用,不验证登录)
+		//统计接收到的数据(有效即可,测试用,不验证登录)
 		//Log.logger(Category.EVENT, ctx.channel().remoteAddress() + "---valid count:" + count.incrementAndGet());
 
 		if (!(msg instanceof String)) {
@@ -148,7 +148,7 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 			return false;
 		}
 
-		Log.logger(Category.EVENT, "客户端[" + channel.remoteAddress() + "] 进行登录验证[" + keyCode + "]/[" + verify + "](正确值)");
+//		Log.logger(Category.EVENT, "客户端[" + channel.remoteAddress() + "] 进行登录验证[" + keyCode + "]/[" + verify + "](正确值)");
 
 		Log.logger(Category.EVENT, verify.equals(keyCode) ? "登录验证码校验通过" : "登录验证码错误");
 		return verify.equals(keyCode);
