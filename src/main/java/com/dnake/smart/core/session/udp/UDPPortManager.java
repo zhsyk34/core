@@ -1,4 +1,4 @@
-package com.dnake.smart.core.session.tcp;
+package com.dnake.smart.core.session.udp;
 
 import com.dnake.smart.core.config.Config;
 import com.dnake.smart.core.database.PortDao;
@@ -7,13 +7,12 @@ import com.dnake.smart.core.kit.AllocateKit;
 import com.dnake.smart.core.kit.ValidateKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
-import com.dnake.smart.core.session.udp.UDPPortRegister;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public final class PortManager {
+public final class UDPPortManager {
 
 	/**
 	 * UDP端口分配(ip,(sn,obj))
@@ -33,16 +32,21 @@ public final class PortManager {
 			if (ValidateKit.isEmpty(list)) {
 				break;
 			}
-			list.forEach(record -> append(record.getIp(), record.getSn(), Math.toIntExact(record.getPort()), record.getHappen()));
+			list.forEach(UDPPortManager::append);
 			cursor += Config.BATCH_FETCH_SIZE;
 		}
 
-		Log.logger(Category.EVENT, "加载完毕:");
-		PORT_MAP.forEach((ip, map) -> Log.logger(Category.EVENT, "ip:[" + ip + "]下有[" + map.size() + "]个端口正被使用"));
+		StringBuilder builder = new StringBuilder();
+		builder.append("加载完毕:\n");
+		builder.append("----------------------------------\n");
+		PORT_MAP.forEach((ip, map) -> builder.append("ip[").append(ip).append("]下有[").append(map.size()).append("]个端口正被使用\n"));
+		builder.append("----------------------------------\n");
+		Log.logger(Category.EVENT, builder.toString());
 	}
 
-	private static void append(String ip, String sn, int port, long happen) {
+	private static void append(UDPRecord record) {
 		final Map<String, UDPPortRegister> map;
+		final String ip = record.getIp();
 		synchronized (PORT_MAP) {
 			if (PORT_MAP.containsKey(ip)) {
 				map = PORT_MAP.get(ip);
@@ -51,13 +55,15 @@ public final class PortManager {
 				PORT_MAP.put(ip, map);
 			}
 		}
-		map.put(sn, UDPPortRegister.from(port, happen));
+		map.put(record.getSn(), UDPPortRegister.of(record.getPort(), record.getHappen()));
 	}
 
 	/**
+	 * 获取数据后网关可能重新登录改变信息
+	 *
 	 * @return 网关最近被分配的端口
 	 */
-	static int port(String ip, String sn) {
+	public static int port(String ip, String sn) {
 		Map<String, UDPPortRegister> map = PORT_MAP.get(ip);
 		if (map == null) {
 			return -1;
@@ -67,20 +73,19 @@ public final class PortManager {
 	}
 
 	/**
-	 * TODO:
-	 * 定时清理垃圾数据(ip地址改变导致的端口占用)
+	 * 定时清理垃圾数据以回收端口(ip地址改变导致的端口占用)
 	 */
-	public static void reduce() {
+	public static void recycle() {
 		//重新分组:转为(sn,(ip,record))
 		final Map<String, Map<String, UDPPortRegister>> snMap = new HashMap<>();
 
 		PORT_MAP.forEach((ip, map) -> map.forEach((sn, record) -> {
-			Map<String, UDPPortRegister> ipMap;
-			if (!snMap.containsKey(sn)) {
+			final Map<String, UDPPortRegister> ipMap;
+			if (snMap.containsKey(sn)) {
+				ipMap = snMap.get(sn);
+			} else {
 				ipMap = new HashMap<>();
 				snMap.put(sn, ipMap);
-			} else {
-				ipMap = snMap.get(sn);
 			}
 
 			ipMap.put(ip, record);
@@ -97,15 +102,15 @@ public final class PortManager {
 
 			UDPPortRegister last = linkMap.entrySet().iterator().next().getValue();
 			Log.logger(Category.EVENT, "网关[" + sn + "]最后使用的端口信息:[" + last + "]");
-			linkMap.forEach((ip, record) -> System.out.println(ip + ":" + record));
+//			linkMap.forEach((ip, record) -> System.out.println(ip + ":" + record));
 
-			//开始移除(移除时与首元素再次进行比较)
+			//开始移除(移除时与首元素再次进行比较,防止误删,避免加锁)
 			linkMap.forEach((ip, record) -> {
-				Map<String, UDPPortRegister> tmp = PORT_MAP.get(ip);
-				if (tmp != null) {
-					UDPPortRegister udpPortRecord = tmp.get(sn);
+				Map<String, UDPPortRegister> presentSnMap = PORT_MAP.get(ip);
+				if (presentSnMap != null) {
+					UDPPortRegister udpPortRecord = presentSnMap.get(sn);
 					if (udpPortRecord != null && udpPortRecord.happen() < last.happen()) {
-						tmp.remove(sn);
+						presentSnMap.remove(sn, udpPortRecord);
 					}
 				}
 			});
@@ -118,16 +123,16 @@ public final class PortManager {
 	 * @param apply 网关申请的UDP连接端口
 	 * @return 为网关分配UDP端口
 	 */
-	static int allocate(String sn, String ip, int apply) {
+	public static int allocate(String sn, String ip, int apply) {
 		synchronized (PORT_MAP) {
 			Log.logger(Category.EVENT, "网关[" + sn + "]请求登录登录信息:[" + ip + " : " + apply + "]");
 
-			Map<String, UDPPortRegister> map;
+			final Map<String, UDPPortRegister> map;
 
 			//1.idle
 			if (!PORT_MAP.containsKey(ip)) {
 				map = new ConcurrentHashMap<>();
-				map.put(sn, UDPPortRegister.from(apply));
+				map.put(sn, UDPPortRegister.of(apply));
 
 				PORT_MAP.put(ip, map);
 				Log.logger(Category.EVENT, "该ip下无相应网关,直接启用端口");
@@ -143,7 +148,7 @@ public final class PortManager {
 			//3.load
 			UDPPortRegister record = map.get(sn);
 			if (record == null) {
-				record = UDPPortRegister.from(-1);//temp,must update
+				record = UDPPortRegister.of(-1);//temp,must update
 				map.put(sn, record);
 			} else {
 				record.happen(System.currentTimeMillis());

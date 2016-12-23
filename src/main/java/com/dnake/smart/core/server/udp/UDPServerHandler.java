@@ -46,7 +46,7 @@ final class UDPServerHandler extends SimpleChannelInboundHandler<DatagramPacket>
 			return null;
 		}
 
-		return UDPSession.from(address).sn(sn).version(version);
+		return UDPSession.from(address).setSn(sn).setVersion(version);
 	}
 
 	@Override

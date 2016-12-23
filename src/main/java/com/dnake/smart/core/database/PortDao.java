@@ -11,7 +11,7 @@ import java.util.List;
 @SuppressWarnings({"SqlDialectInspection", "SqlNoDataSourceInspection"})
 public class PortDao {
 	private static final String FIND_SQL = "SELECT ip, sn, port, updateTime AS happen FROM udpRecord ORDER BY id LIMIT ?, ?";
-	private static final String SAVE_SQL = "INSERT INTO udpRecord(ip, sn, port, createTime, updateTime) VALUES(?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE ip = ?, port = ?, updateTime = ?";
+	private static final String SAVE_SQL = "INSERT INTO udpRecord(ip, sn, port, createTime, updateTime) VALUES(?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE port = ?, updateTime = ?";
 
 	public static List<UDPRecord> find(int offset, int limit) {
 		JdbcTemplate session = SqlSession.session();

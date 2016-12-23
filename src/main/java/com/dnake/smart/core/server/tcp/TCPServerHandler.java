@@ -8,8 +8,8 @@ import com.dnake.smart.core.dict.Result;
 import com.dnake.smart.core.kit.JsonKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
-import com.dnake.smart.core.reply.Message;
 import com.dnake.smart.core.reply.MessageManager;
+import com.dnake.smart.core.reply.Request;
 import com.dnake.smart.core.session.tcp.TCPSessionManager;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -50,7 +50,7 @@ final class TCPServerHandler extends ChannelInboundHandlerAdapter {
 		switch (device) {
 			case APP:
 				Log.logger(Category.EVENT, "客户端请求[" + command + "],将其添加到消息处理队列...");
-				MessageManager.request(sn, Message.of(TCPSessionManager.id(channel), command));
+				MessageManager.request(sn, Request.of(TCPSessionManager.id(channel), command));
 				break;
 			case GATEWAY:
 				//1.心跳

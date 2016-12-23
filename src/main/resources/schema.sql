@@ -12,5 +12,5 @@ CREATE TABLE IF NOT EXISTS udpRecord (
   DEFAULT CHARSET = UTF8;
 
 ALTER TABLE udpRecord
-  ADD CONSTRAINT unique_sn UNIQUE KEY (sn);
+  ADD CONSTRAINT unique_ip_sn UNIQUE KEY (ip, sn);
 

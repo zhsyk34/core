@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public enum Error {
+public enum ErrNo {
 	CORRECT(0, "正确"),
 	UNKNOWN(101, "未知错误"),
 	PROTOCOL(102, "协议格式错误"),

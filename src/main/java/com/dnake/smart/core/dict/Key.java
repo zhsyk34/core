@@ -17,7 +17,9 @@ public enum Key {
 	UDP_PORT("UDPPort", "网关UDP端口"),
 	ERRNO("errno", "错误码"),
 	KEY("key", "密钥信息"),
-	KEYCODE("keyCode", "密钥值");
+	KEYCODE("keyCode", "密钥值"),
+
+	ERR_INFO("errInfo", "错误信息");
 
 	private String name;
 	private String description;

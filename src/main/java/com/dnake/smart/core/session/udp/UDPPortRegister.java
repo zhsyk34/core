@@ -1,14 +1,15 @@
 package com.dnake.smart.core.session.udp;
 
 /**
- * UDP端口登记信息
+ * 网关UDP端口信息
+ * 初始化数据从数据库中加载,网关登录后重新进行验证/分配
  */
 public final class UDPPortRegister {
 
 	private int port;
 
 	/**
-	 * 记录登记时间,用以在定时任务中删除过期数据
+	 * 记录登记时间用以在定时任务中删除过期数据
 	 * 防止因网关ip的频繁变动导致的端口占用
 	 */
 	private long happen;
@@ -18,12 +19,12 @@ public final class UDPPortRegister {
 		this.happen = happen;
 	}
 
-	public static UDPPortRegister from(int port, long happen) {
+	public static UDPPortRegister of(int port, long happen) {
 		return new UDPPortRegister(port, happen);
 	}
 
-	public static UDPPortRegister from(int port) {
-		return new UDPPortRegister(port, System.currentTimeMillis());
+	static UDPPortRegister of(int port) {
+		return of(port, System.currentTimeMillis());
 	}
 
 	public int port() {
@@ -35,12 +36,35 @@ public final class UDPPortRegister {
 		return this;
 	}
 
-	public long happen() {
+	long happen() {
 		return happen;
 	}
 
-	public UDPPortRegister happen(long happen) {
+	UDPPortRegister happen(long happen) {
 		this.happen = happen;
 		return this;
+	}
+
+	/**
+	 * for map.remove(key,value)
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		UDPPortRegister that = (UDPPortRegister) o;
+
+		return port == that.port && happen == that.happen;
+
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * port + (int) (happen ^ (happen >>> 32));
 	}
 }

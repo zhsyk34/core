@@ -1,8 +1,8 @@
 package com.dnake.smart.core.server.tcp;
 
 import com.alibaba.fastjson.JSONObject;
+import com.dnake.smart.core.config.Config;
 import com.dnake.smart.core.dict.*;
-import com.dnake.smart.core.dict.Error;
 import com.dnake.smart.core.kit.CodecKit;
 import com.dnake.smart.core.kit.JsonKit;
 import com.dnake.smart.core.kit.RandomKit;
@@ -15,7 +15,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 /**
- * 处理登录
+ * 登录处理
  */
 final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 
@@ -74,6 +74,7 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 			Log.logger(Category.EVENT, "无效的登录请求(未明确登录类型或表明身份)");
 			return false;
 		}
+
 		//缓存登录类型及登录身份sn(同时可实现sn与channel的双向绑定)
 		TCPSessionManager.type(channel, device);
 		TCPSessionManager.sn(channel, sn);
@@ -83,9 +84,9 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 				Log.logger(Category.EVENT, "app登录请求");
 				return true;
 			case GATEWAY:
-				Integer apply = json.getIntValue(Key.UDP_PORT.getName());
+				int apply = json.getIntValue(Key.UDP_PORT.getName());
 
-				if (ValidateKit.invalid(apply)) {
+				if (apply < Config.UDP_CLIENT_MIN_PORT) {
 					Log.logger(Category.EVENT, "网关登录请求被拒绝(错误的登录数据)");
 					return false;
 				}
@@ -111,7 +112,7 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 
 		if (!validate(channel, json)) {
 			response.put(Key.RESULT.getName(), Result.NO.getName());
-			response.put(Key.ERRNO.getName(), Error.PARAMETER.getNo());
+			response.put(Key.ERRNO.getName(), ErrNo.PARAMETER.getNo());
 			channel.writeAndFlush(response);
 
 			Log.logger(Category.EVENT, "无效的登录请求,拒绝连接");
@@ -125,7 +126,7 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 		//本次登录的验证信息
 		response.put(Key.KEY.getName(), CodecKit.loginKey(group, offset));
 		//缓存本次登录的验证码
-		TCPSessionManager.code(channel, CodecKit.loginVerify(group, offset));
+		TCPSessionManager.verify(channel, CodecKit.loginVerify(group, offset));
 
 		channel.writeAndFlush(response);
 	}
@@ -137,20 +138,20 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 	private boolean validate(Channel channel, String keyCode) {
 		//必需信息
 		Device device = TCPSessionManager.type(channel);
-		String verify = TCPSessionManager.code(channel);
+		String verify = TCPSessionManager.verify(channel);
 		String sn = TCPSessionManager.sn(channel);
 		//网关额外信息
-		Integer apply = TCPSessionManager.port(channel);
+		int apply = TCPSessionManager.port(channel);
 
 		//非法登录,关闭连接
-		if (device == null || ValidateKit.isEmpty(verify) || ValidateKit.isEmpty(sn) || device == Device.GATEWAY && ValidateKit.invalid(apply)) {
+		if (device == null || ValidateKit.isEmpty(verify) || ValidateKit.isEmpty(sn) || (device == Device.GATEWAY && apply < Config.UDP_CLIENT_MIN_PORT)) {
 			Log.logger(Category.EVENT, "非法登录");
 			return false;
 		}
 
 //		Log.logger(Category.EVENT, "客户端[" + channel.remoteAddress() + "] 进行登录验证[" + keyCode + "]/[" + verify + "](正确值)");
 
-		Log.logger(Category.EVENT, verify.equals(keyCode) ? "登录验证码校验通过" : "登录验证码错误");
+//		Log.logger(Category.EVENT, verify.equals(keyCode) ? "登录验证码校验通过" : "登录验证码错误");
 		return verify.equals(keyCode);
 	}
 
@@ -162,7 +163,7 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 
 		if (!validate(channel, keyCode)) {
 			response.put(Key.RESULT.getName(), Result.NO.getName());
-			response.put(Key.ERRNO.getName(), Error.UNKNOWN.getNo());
+			response.put(Key.ERRNO.getName(), ErrNo.UNKNOWN.getNo());
 			channel.writeAndFlush(response);
 			TCPSessionManager.close(channel);
 			return;
@@ -175,7 +176,7 @@ final class TCPLoginHandler extends ChannelInboundHandlerAdapter {
 
 		if (allocation == -1) {
 			response.put(Key.RESULT.getName(), Result.NO.getName());
-			response.put(Key.ERRNO.getName(), Error.TIMEOUT.getNo());
+			response.put(Key.ERRNO.getName(), ErrNo.TIMEOUT.getNo());
 			channel.writeAndFlush(response);
 			TCPSessionManager.close(channel);
 			return;

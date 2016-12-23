@@ -33,7 +33,7 @@ public final class UDPSessionManager {
 	}
 
 	public static void append(UDPSession session) {
-		GATEWAY_MAP.put(session.sn(), session);
+		GATEWAY_MAP.put(session.getSn(), session);
 	}
 
 	public static void respond(InetSocketAddress target) {
@@ -60,7 +60,7 @@ public final class UDPSessionManager {
 		Iterator<Map.Entry<String, UDPSession>> iterator = GATEWAY_MAP.entrySet().iterator();
 		while (iterator.hasNext()) {
 			UDPSession session = iterator.next().getValue();
-			long createTime = session.happen();
+			long createTime = session.getHappen();
 			if (!ValidateKit.time(createTime, Config.UDP_MAX_IDLE)) {
 				iterator.remove();
 			}

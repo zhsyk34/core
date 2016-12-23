@@ -8,6 +8,7 @@ import com.dnake.smart.core.kit.ThreadKit;
 import com.dnake.smart.core.kit.ValidateKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
+import com.dnake.smart.core.session.udp.UDPPortManager;
 import com.dnake.smart.core.session.udp.UDPSession;
 import com.dnake.smart.core.session.udp.UDPSessionManager;
 import io.netty.channel.Channel;
@@ -64,21 +65,21 @@ public final class TCPSessionManager {
 			return false;
 		}
 
-		String ip = udpSession.ip();
+		String ip = udpSession.getIp();
 		int chance = 0;//尝试次数
 
 		while (chance < 3 && !GATEWAY_MAP.containsKey(sn)) {
 			chance++;
 			//网关心跳端口
-			UDPSessionManager.awake(ip, udpSession.port());
+			UDPSessionManager.awake(ip, udpSession.getPort());
 			ThreadKit.await(Config.GATEWAY_AWAKE_CHECK_TIME);
 			if (GATEWAY_MAP.containsKey(sn)) {
 				return true;
 			}
 			//服务器分配端口
-			int port = PortManager.port(ip, sn);
+			int port = UDPPortManager.port(ip, sn);
 			if (port >= Config.UDP_CLIENT_MIN_PORT) {
-				UDPSessionManager.awake(ip, udpSession.port());
+				UDPSessionManager.awake(ip, udpSession.getPort());
 			}
 			ThreadKit.await(Config.GATEWAY_AWAKE_CHECK_TIME);
 		}
@@ -107,12 +108,12 @@ public final class TCPSessionManager {
 	/**
 	 * 缓存登录验证码
 	 */
-	public static Channel code(Channel channel, String code) {
+	public static Channel verify(Channel channel, String code) {
 		channel.attr(SessionAttributeKey.KEYCODE).set(code);
 		return channel;
 	}
 
-	public static String code(Channel channel) {
+	public static String verify(Channel channel) {
 		return channel.attr(SessionAttributeKey.KEYCODE).get();
 	}
 
@@ -178,7 +179,7 @@ public final class TCPSessionManager {
 	 * @param id  客户端连接标识
 	 * @param msg 网关对客户端请求的响应
 	 */
-	public static boolean respond(String id, String msg) {
+	public static boolean response(String id, String msg) {
 		TCPSession session = APP_MAP.get(id);
 		if (session == null) {
 			Log.logger(Category.EVENT, "客户端[" + id + "]已下线");
@@ -229,7 +230,6 @@ public final class TCPSessionManager {
 				String ip = session.ip();
 				int apply = port(channel);
 
-				//TODO:请求端口必须>=50000?
 				if (apply < Config.UDP_CLIENT_MIN_PORT) {
 					Log.logger(Category.EVENT, "验证失败(错误的登录信息)");
 					return -1;
@@ -242,8 +242,7 @@ public final class TCPSessionManager {
 					remove(exist.channel());
 				}
 
-				//设置sn
-				int allocation = PortManager.allocate(sn, ip, apply);
+				int allocation = UDPPortManager.allocate(sn, ip, apply);
 				GATEWAY_MAP.put(sn, session);
 				Log.logger(Category.EVENT, "网关[" + sn + "]登录成功");
 				return allocation;
@@ -310,6 +309,19 @@ public final class TCPSessionManager {
 				Log.logger(Category.EXCEPTION, "关闭出错,非法的登录数据");
 				return false;
 		}
+	}
+
+	/**
+	 * 根据sn关闭网关
+	 * 存在网关重新登录后被关闭的可能
+	 */
+	public static boolean close(String sn) {
+		TCPSession session = GATEWAY_MAP.remove(sn);
+		if (session == null) {
+			return true;
+		}
+		remove(session.channel());
+		return true;
 	}
 
 	/**

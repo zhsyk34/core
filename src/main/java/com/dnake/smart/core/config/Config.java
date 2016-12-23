@@ -57,9 +57,9 @@ public final class Config {
 	//服务器启动完毕后执行扫描任务
 	public static final int SCHEDULE_TASK_DELAY_TIME = 1;
 	//服务器启动状态监视时间间隔
-	public static final int SERVER_START_MONITOR_TIME = 100;//ms
+	public static final int SERVER_START_MONITOR_TIME = 1;
 	//通过UDP唤醒网关时检测状态时间间隔
-	public static final int GATEWAY_AWAKE_CHECK_TIME = 100;//ms
+	public static final int GATEWAY_AWAKE_CHECK_TIME = 1;
 	//服务器启动时间
 	public static final String SERVER_START_TIME = "2016-12-01";
 	/**
@@ -68,6 +68,7 @@ public final class Config {
 	public static final int BATCH_FETCH_SIZE = 10;
 	//网关发送UDP心跳包频率
 	private static final int UDP_CLIENT_FREQUENCY = 10;
-	//网关(UDP心跳)最大下线时长,超过将起移出队列
-	public static final int UDP_MAX_IDLE = UDP_CLIENT_FREQUENCY * 2 - 1;
+	//网关UDP心跳最长离线时间
+	public static final int UDP_MAX_IDLE = UDP_CLIENT_FREQUENCY * 10;
+
 }

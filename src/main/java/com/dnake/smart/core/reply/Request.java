@@ -8,8 +8,8 @@ import lombok.ToString;
  */
 @Getter
 @ToString
-public class Message {
-	private final String src;//来源(app channel id)
+public class Request {
+	private final String src;//来源(app channelId)
 	private final String command;//指令内容
 
 	//private String dest;//目标(gateway sn)放置于队列中
@@ -18,12 +18,12 @@ public class Message {
 	//private boolean send;//是否发送(由队列统一维护)
 	//private long time;//开始发送时间(由队列统一维护)
 
-	private Message(String src, String command) {
+	private Request(String src, String command) {
 		this.src = src;
 		this.command = command;
 	}
 
-	public static Message of(String src, String command) {
-		return new Message(src, command);
+	public static Request of(String src, String command) {
+		return new Request(src, command);
 	}
 }

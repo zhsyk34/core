@@ -1,10 +1,19 @@
 package com.dnake.smart.core.session.udp;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
+
 import java.net.InetSocketAddress;
 
 /**
- * UDP心跳信息
+ * 网关UDP心跳信息
+ * 相较 {@link UDPPortRegister} 多出version信息,ip+sn由 {@link UDPPortManager} 中的map维护
+ * 相较 {@link com.dnake.smart.core.database.UDPRecord} 多出version信息
  */
+@Getter
+@Setter
+@Accessors(chain = true)
 public final class UDPSession {
 	private final String ip;
 	private final int port;
@@ -22,35 +31,4 @@ public final class UDPSession {
 		session.happen = System.currentTimeMillis();
 		return session;
 	}
-
-	public String ip() {
-		return ip;
-	}
-
-	public int port() {
-		return port;
-	}
-
-	public String sn() {
-		return sn;
-	}
-
-	public String version() {
-		return version;
-	}
-
-	long happen() {
-		return happen;
-	}
-
-	public UDPSession sn(String sn) {
-		this.sn = sn;
-		return this;
-	}
-
-	public UDPSession version(String version) {
-		this.version = version;
-		return this;
-	}
-
 }

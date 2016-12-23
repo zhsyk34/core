@@ -6,6 +6,7 @@
 
     <groupId>com.dnake.smart</groupId>
     <artifactId>core</artifactId>
+    <packaging>war</packaging>
     <version>1.0</version>
 
     <properties>

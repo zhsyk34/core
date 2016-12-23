@@ -4,21 +4,23 @@ import com.dnake.smart.core.session.udp.UDPPortRegister;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 public class PortManagerTest {
 	private static Map<String, Map<String, UDPPortRegister>> ipMap = new HashMap<>();
 
 	private static void init() {
 		int gwCnt = 4, ipCnt = 5;
+		Random random = new Random();
 		for (int i = 1; i < ipCnt; i++) {
 			Map<String, UDPPortRegister> snMap = new HashMap<>();
 			ipMap.put("192.168.1." + (100 + i), snMap);
 			//>gwCnt random duplicate
 			for (int j = 0; j < 8; j++) {
-				int k = (int) (Math.random() * gwCnt + 1);
-				long happen = (int) (Math.random() * 100);
+				int k = random.nextInt(gwCnt);
+				long happen = random.nextInt(100);
 				int port = 50000 + 7 * (j + 1);
-				snMap.put("sn" + k, UDPPortRegister.from(port, happen));
+				snMap.put("sn" + k, UDPPortRegister.of(port, happen));
 			}
 		}
 	}

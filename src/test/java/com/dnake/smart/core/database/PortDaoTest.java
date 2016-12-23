@@ -1,5 +1,6 @@
 package com.dnake.smart.core.database;
 
+import com.alibaba.druid.pool.DruidDataSource;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -9,6 +10,8 @@ import java.util.Random;
 public class PortDaoTest {
 	@Test
 	public void find() throws Exception {
+		DruidDataSource dataSource = new DruidDataSource();
+		dataSource.setUrl("123");
 
 	}
 
