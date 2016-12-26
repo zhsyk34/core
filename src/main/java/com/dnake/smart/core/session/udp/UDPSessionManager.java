@@ -8,6 +8,7 @@ import com.dnake.smart.core.dict.Result;
 import com.dnake.smart.core.kit.ValidateKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
+import com.dnake.smart.core.server.udp.UDPClient;
 import com.dnake.smart.core.server.udp.UDPServer;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -15,7 +16,9 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.CharsetUtil;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -78,5 +81,21 @@ public final class UDPSessionManager {
 		}
 		ByteBuf buf = Unpooled.copiedBuffer(json.toString().getBytes(CharsetUtil.UTF_8));
 		UDPServer.getChannel().writeAndFlush(new DatagramPacket(buf, target));
+	}
+
+	/**
+	 * 推送至web服务器
+	 */
+	public static void push() {
+		List<UDPSession> list = new ArrayList<>(GATEWAY_MAP.values());
+
+		final int batch = 10;
+
+		for (int i = 0; i < list.size(); i += batch) {
+			JSONObject json = new JSONObject();
+			json.put(Key.ACTION.getName(), Action.UDP_PUSH.getName());
+			json.put(Key.DATA.getName(), list.subList(i, Math.min(i + batch, list.size())));
+			UDPClient.send(json.toString());
+		}
 	}
 }

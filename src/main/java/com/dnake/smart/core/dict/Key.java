@@ -19,8 +19,16 @@ public enum Key {
 	KEY("key", "密钥信息"),
 	KEYCODE("keyCode", "密钥值"),
 
-	ERR_INFO("errInfo", "错误信息");
+	ERR_INFO("errInfo", "错误信息"),
 
-	private String name;
-	private String description;
+	/**
+	 * 推送
+	 */
+	IP("ip", "ip"),
+	PORT("port", "port"),
+	HAPPEN("happen", "发生时间"),
+	DATA("data", "推送UDP数组数据信息");
+
+	private final String name;
+	private final String description;
 }

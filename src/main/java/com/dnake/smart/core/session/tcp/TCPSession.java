@@ -1,6 +1,7 @@
 package com.dnake.smart.core.session.tcp;
 
 import com.dnake.smart.core.config.Config;
+import com.dnake.smart.core.dict.SessionAttributeKey;
 import com.dnake.smart.core.kit.ConvertKit;
 import io.netty.channel.Channel;
 
@@ -9,7 +10,7 @@ import java.net.InetSocketAddress;
 /**
  * TCP连接信息
  */
-final class TCPSession {
+public final class TCPSession {
 	private static final long MIN_MILL = ConvertKit.from(ConvertKit.from(Config.SERVER_START_TIME));
 
 	//连接通道
@@ -39,13 +40,22 @@ final class TCPSession {
 		return channel;
 	}
 
-	long happen() {
+	public String sn() {
+		return channel.attr(SessionAttributeKey.SN).get();
+	}
+
+	public long happen() {
 		return happen;
 	}
 
-	String ip() {
+	public String ip() {
 		InetSocketAddress address = (InetSocketAddress) channel.remoteAddress();
 		return address.getAddress().getHostAddress();
+	}
+
+	public int port() {
+		InetSocketAddress address = (InetSocketAddress) channel.remoteAddress();
+		return address.getPort();
 	}
 
 }

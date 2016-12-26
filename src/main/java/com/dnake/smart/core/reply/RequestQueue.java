@@ -14,24 +14,24 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 @Getter
 @Setter
-final class MessageQueue {
+final class RequestQueue {
 	private final BlockingQueue<Request> queue;
 	private volatile boolean send;
 	private volatile long time;
 
-	private MessageQueue() {
+	private RequestQueue() {
 		queue = new LinkedBlockingQueue<>();
 		this.reset();
 	}
 
-	static MessageQueue instance() {
-		return new MessageQueue();
+	static RequestQueue instance() {
+		return new RequestQueue();
 	}
 
 	/**
 	 * 重置队列状态
 	 */
-	private synchronized MessageQueue reset() {
+	private synchronized RequestQueue reset() {
 		this.send = false;
 		this.time = -1;
 		return this;
@@ -40,7 +40,7 @@ final class MessageQueue {
 	/**
 	 * 当队列数据被处理时开启警戒状态以进行监测
 	 */
-	private synchronized MessageQueue guard() {
+	private synchronized RequestQueue guard() {
 		this.send = true;
 		this.time = System.currentTimeMillis();
 		return this;

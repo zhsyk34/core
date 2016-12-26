@@ -65,7 +65,7 @@ final class TCPServerHandler extends ChannelInboundHandlerAdapter {
 				//2.推送
 				if (action != null && action.getType() == 4) {
 					Log.logger(Category.RECEIVE, "网关[" + sn + "]推送数据...");
-					MessageManager.save(sn, command);
+					MessageManager.push(command);
 					return;
 				}
 

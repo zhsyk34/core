@@ -8,6 +8,7 @@ import com.dnake.smart.core.kit.ThreadKit;
 import com.dnake.smart.core.kit.ValidateKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
+import com.dnake.smart.core.reply.MessageManager;
 import com.dnake.smart.core.session.udp.UDPPortManager;
 import com.dnake.smart.core.session.udp.UDPSession;
 import com.dnake.smart.core.session.udp.UDPSessionManager;
@@ -244,6 +245,9 @@ public final class TCPSessionManager {
 
 				int allocation = UDPPortManager.allocate(sn, ip, apply);
 				GATEWAY_MAP.put(sn, session);
+
+				MessageManager.login(session);
+
 				Log.logger(Category.EVENT, "网关[" + sn + "]登录成功");
 				return allocation;
 			default:
@@ -293,15 +297,19 @@ public final class TCPSessionManager {
 					Log.logger(Category.EXCEPTION, channel.remoteAddress() + "网关关闭出错,非法的登录数据");
 					return false;
 				}
-				//可能被后来的连接所覆盖
+
 				session = GATEWAY_MAP.get(sn);
 				if (session == null) {
 					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 网关关闭出错,在网关队列中查找不到该连接(可能在线时长已到被移除)");
 					return false;
 				}
+
+				//可能被后来的连接所覆盖
 				if (session.channel() != channel) {
 					Log.logger(Category.EXCEPTION, channel.remoteAddress() + " 该网关已重新上线");
 				} else {
+					MessageManager.logout(session);
+
 					GATEWAY_MAP.remove(sn);
 				}
 				return true;
@@ -360,6 +368,8 @@ public final class TCPSessionManager {
 		while (iterator.hasNext()) {
 			TCPSession session = iterator.next().getValue();
 			if (!ValidateKit.time(session.happen(), TCP_GATEWAY_TIME_OUT)) {
+				MessageManager.logout(session);
+
 				iterator.remove();
 				remove(session.channel());
 			}

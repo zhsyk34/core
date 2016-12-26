@@ -1,19 +1,20 @@
 package com.dnake.smart.core.reply;
 
 import com.alibaba.fastjson.JSONObject;
+import com.dnake.smart.core.dict.Action;
 import com.dnake.smart.core.dict.ErrNo;
 import com.dnake.smart.core.dict.Key;
 import com.dnake.smart.core.dict.Result;
 import com.dnake.smart.core.kit.ValidateKit;
 import com.dnake.smart.core.log.Category;
 import com.dnake.smart.core.log.Log;
+import com.dnake.smart.core.server.udp.UDPClient;
+import com.dnake.smart.core.session.tcp.TCPSession;
 import com.dnake.smart.core.session.tcp.TCPSessionManager;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,12 +25,12 @@ public final class MessageManager {
 	/**
 	 * app请求消息处理队列
 	 */
-	private static final Map<String, MessageQueue> APP_REQUEST = new ConcurrentHashMap<>();
+	private static final Map<String, RequestQueue> APP_REQUEST = new ConcurrentHashMap<>();
 
-	/**
-	 * 网关推送消息处理队列
-	 */
-	private static final List<Response> GATEWAY_PUSH = new CopyOnWriteArrayList<>();
+//	/**
+//	 * 网关推送消息处理队列
+//	 */
+//	private static final Queue<String> GATEWAY_PUSH = new LinkedBlockingDeque<>();
 
 	/**
 	 * 将app请求添加到消息处理队列
@@ -39,12 +40,12 @@ public final class MessageManager {
 	 * @return 是否受理
 	 */
 	public static boolean request(String sn, Request request) {
-		final MessageQueue queue;
+		final RequestQueue queue;
 		synchronized (APP_REQUEST) {
 			if (APP_REQUEST.containsKey(sn)) {
 				queue = APP_REQUEST.get(sn);
 			} else {
-				queue = MessageQueue.instance();
+				queue = RequestQueue.instance();
 				APP_REQUEST.put(sn, queue);
 			}
 		}
@@ -58,7 +59,7 @@ public final class MessageManager {
 	 * @param response 网关的回复
 	 */
 	public static void response(String sn, String response) {
-		MessageQueue queue = APP_REQUEST.get(sn);
+		RequestQueue queue = APP_REQUEST.get(sn);
 
 		Request request = queue.poll();
 		if (request == null) {
@@ -71,8 +72,32 @@ public final class MessageManager {
 	/**
 	 * 保存网关推送的数据
 	 */
-	public static void save(String sn, String command) {
-		GATEWAY_PUSH.add(Response.of(sn, command));
+	public static void push(String message) {
+		UDPClient.send(message);
+	}
+
+	/**
+	 * 网关登录
+	 */
+	public static void login(TCPSession session) {
+		JSONObject json = new JSONObject();
+		json.put(Key.ACTION.getName(), Action.LOGIN.getName());
+		json.put(Key.SN.getName(), session.sn());
+		json.put(Key.IP.getName(), session.ip());
+		json.put(Key.PORT.getName(), session.port());
+		json.put(Key.HAPPEN.getName(), session.happen());
+		UDPClient.send(json.toString());
+	}
+
+	/**
+	 * 网关离线
+	 */
+	public static void logout(TCPSession session) {
+		JSONObject json = new JSONObject();
+		json.put(Key.ACTION.getName(), Action.LOGOUT.getName());
+		json.put(Key.SN.getName(), session.sn());
+		json.put(Key.HAPPEN.getName(), session.happen());
+		UDPClient.send(json.toString());
 	}
 
 	/**
@@ -90,17 +115,6 @@ public final class MessageManager {
 		});
 
 		Log.logger(Category.EVENT, "开始处理消息队列,共[" + count.get() + "]条");
-	}
-
-	/**
-	 * TODO:推送至web服务器
-	 * 持久化数据
-	 */
-	public static void push() {
-		GATEWAY_PUSH.forEach(record -> {
-			System.out.println(record.getDest());
-			System.out.println(record.getCommand());
-		});
 	}
 
 	/**

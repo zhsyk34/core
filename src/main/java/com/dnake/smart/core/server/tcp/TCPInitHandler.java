@@ -26,7 +26,7 @@ final class TCPInitHandler extends ChannelInboundHandlerAdapter {
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 		Log.logger(Category.EXCEPTION, ctx.channel().remoteAddress() + " 发生错误");
-		TCPSessionManager.close(ctx.channel());
+		channelInactive(ctx);
 	}
 
 	@Override

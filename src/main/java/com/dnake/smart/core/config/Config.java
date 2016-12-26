@@ -46,11 +46,13 @@ public final class Config {
 	public static final int UDP_PORT_COLLECTION_SCAN_FREQUENCY = 24 * 60 * 60;
 	//端口信息保存频率
 	public static final int UDP_PORT_SAVE_FREQUENCY = 6 * 60 * 60;
+
 	/**
 	 * -----------------------------日志配置-----------------------------
 	 */
 
 	public static final int LOGGER_CAPACITY = 5000;
+
 	/**
 	 * -----------------------------系统时间配置-----------------------------
 	 */
@@ -62,10 +64,18 @@ public final class Config {
 	public static final int GATEWAY_AWAKE_CHECK_TIME = 1;
 	//服务器启动时间
 	public static final String SERVER_START_TIME = "2016-12-01";
+
 	/**
 	 * -----------------------------DB配置-----------------------------
 	 */
 	public static final int BATCH_FETCH_SIZE = 10;
+	/**
+	 * -----------------------------web-udp信息-----------------------------
+	 */
+	//本地服务器地址
+	public static final String WEB_UDP_IP = "127.0.0.1";
+	//TCP服务器默认端口
+	public static final int WEB_UDP_PORT = 12345;
 	//网关发送UDP心跳包频率
 	private static final int UDP_CLIENT_FREQUENCY = 10;
 	//网关UDP心跳最长离线时间
